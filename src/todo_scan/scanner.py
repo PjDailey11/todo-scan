@@ -61,3 +61,34 @@ def is_oversized_source_file(
     """
 
     return source_path.stat().st_size > size_limit_bytes
+
+
+def find_line_comment_start(line_text: str, line_prefix: str) -> int:
+    """Return the index of a real line-comment prefix, or ``-1`` if none exists.
+
+    Parameters:
+        line_text: The raw source line, without its newline.
+        line_prefix: The delimiter to search for, such as ``#`` or ``//``.
+
+    Returns:
+        The character index of the first prefix that should be treated as a
+        comment starter, or ``-1`` when the line has none.
+
+    Behavior:
+        A bare ``str.find`` would treat the ``//`` in ``https://example`` as a
+        C++ comment and then report a tag inside the URL. When the prefix is
+        ``//``, a match immediately preceded by ``:`` is skipped and the search
+        continues. Other prefixes are taken at their first occurrence; skipping
+        string literals would require a full lexer, which this tool deliberately
+        does not implement.
+    """
+
+    search_from = 0
+    while True:
+        prefix_index = line_text.find(line_prefix, search_from)
+        if prefix_index < 0:
+            return -1
+        if line_prefix == "//" and prefix_index > 0 and line_text[prefix_index - 1] == ":":
+            search_from = prefix_index + len(line_prefix)
+            continue
+        return prefix_index
