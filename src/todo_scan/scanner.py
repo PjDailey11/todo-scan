@@ -3,6 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from re import Pattern
+
+from todo_scan.comment_styles import CommentStyle, comment_style_for_suffix
+from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
+from todo_scan.tag_pattern import build_tag_search_pattern
+from todo_scan.tagged_comment import TaggedComment
 
 # One mebibyte is large enough for ordinary source and small enough to skip
 # minified bundles, lockfiles, and accidental binary drops without reading them
@@ -94,11 +100,6 @@ def find_line_comment_start(line_text: str, line_prefix: str) -> int:
         return prefix_index
 
 
-from re import Pattern
-
-from todo_scan.recognized_tags import normalize_tag
-from todo_scan.tagged_comment import TaggedComment
-
 
 def extract_tagged_comments_from_text(
     comment_text: str,
@@ -150,11 +151,6 @@ def extract_tagged_comments_from_text(
             comment_style=comment_style_name,
         )
     ]
-
-
-from todo_scan.comment_styles import CommentStyle, comment_style_for_suffix
-from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS
-from todo_scan.tag_pattern import build_tag_search_pattern
 
 
 def scan_source_file(
