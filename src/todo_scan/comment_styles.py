@@ -39,3 +39,7 @@ class CommentStyle:
     line_prefix: str | None = None
     block_start: str | None = None
     block_end: str | None = None
+
+
+HASH_COMMENT_STYLE = CommentStyle(style_name="hash", line_prefix="#")
+"""Line comments introduced by ``#`` (Python, Ruby, Shell, YAML, Toml, and similar)."""
