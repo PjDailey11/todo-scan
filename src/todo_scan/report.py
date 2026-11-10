@@ -54,3 +54,42 @@ def _display_path(source_path: Path, project_root: Path | None) -> str:
         return str(source_path.relative_to(project_root))
     except ValueError:
         return str(source_path)
+
+
+import json
+
+
+def format_json_report(
+    tagged_comments: list[TaggedComment],
+    project_root: Path | None = None,
+) -> str:
+    """Render matches as a pretty-printed JSON array.
+
+    Parameters:
+        tagged_comments: Matches in the order they should appear in the array.
+        project_root: Optional root used to relativize ``path`` values, same
+            rule as ``format_text_report``.
+
+    Returns:
+        A UTF-8 JSON document ending in a newline. The document is always an
+        array, including when it is empty, so downstream tools can parse it
+        without a special "no matches" schema.
+
+    Behavior:
+        Each object has ``path``, ``line``, ``tag``, ``message``, and
+        ``comment_style`` keys. ``ensure_ascii`` is left at the default True
+        so the report stays readable in terminals that do not handle escaped
+        non-ASCII well; a later flag can relax this if someone needs it.
+    """
+
+    payload = [
+        {
+            "path": _display_path(comment.source_path, project_root),
+            "line": comment.line_number,
+            "tag": comment.tag,
+            "message": comment.message,
+            "comment_style": comment.comment_style,
+        }
+        for comment in tagged_comments
+    ]
+    return json.dumps(payload, indent=2) + "\n"
