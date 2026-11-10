@@ -59,3 +59,21 @@ C_STYLE_COMMENT_STYLE = CommentStyle(
     block_start="/*",
     block_end="*/",
 )
+
+# HTML/XML and Markdown HTML comments share the same pair. SQL, Lua, and Haskell
+# use `--` as a line comment; we do not attempt Haskell's `{--}` blocks here
+# because they are uncommon in the trees this tool is aimed at. Lisp-family
+# languages use `;`.
+HTML_COMMENT_STYLE = CommentStyle(
+    style_name="html",
+    block_start="<!--",
+    block_end="-->",
+)
+DASH_DASH_COMMENT_STYLE = CommentStyle(
+    style_name="dash-dash",
+    line_prefix="--",
+)
+SEMICOLON_COMMENT_STYLE = CommentStyle(
+    style_name="semicolon",
+    line_prefix=";",
+)
