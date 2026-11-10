@@ -53,3 +53,29 @@ left for a future `--check` flag. A missing path exits with status 2.
 
 The default text format uses `path:line: TAG message` lines, which most
 terminals and editors treat as clickable locations.
+
+## What it does and does not do
+
+The scanner is a heuristic. It looks for tags inside comment delimiters chosen
+from the file suffix (`#` for Python and shell, `//` and `/* */` for C-like
+languages, `<!-- -->` for HTML, `--` for SQL and Lua, `;` for Lisp-family
+files). It is not a full language parser, so a tag inside a string can still
+match if a comment delimiter also appears in that string.
+
+A few deliberate rules keep the noise down:
+
+- `https://` is not treated as a `//` comment, so URLs that contain a tag name
+  are not reported.
+- Binary files (a NUL in the first 8 KiB), files larger than 1 MiB, and files
+  that are not valid UTF-8 are skipped.
+- Well-known tool directories such as `.git`, `node_modules`, and `.venv` are
+  not walked. The walker does not follow symlinks, so a scan cannot escape the
+  tree you passed in.
+- `.gitignore` is not honored yet; that is a planned improvement.
+
+Default tags are `TODO`, `FIXME`, `HACK`, `XXX`, and `NOTE`. They are matched
+case-insensitively as whole words, with an optional colon before the message.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
