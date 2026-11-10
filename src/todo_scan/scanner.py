@@ -92,3 +92,61 @@ def find_line_comment_start(line_text: str, line_prefix: str) -> int:
             search_from = prefix_index + len(line_prefix)
             continue
         return prefix_index
+
+
+from re import Pattern
+
+from todo_scan.recognized_tags import normalize_tag
+from todo_scan.tagged_comment import TaggedComment
+
+
+def extract_tagged_comments_from_text(
+    comment_text: str,
+    source_path: Path,
+    line_number: int,
+    comment_style_name: str,
+    tag_search_pattern: Pattern[str],
+) -> list[TaggedComment]:
+    """Return every recognized tag found in already-extracted comment text.
+
+    Parameters:
+        comment_text: The comment body only, with delimiters already stripped
+            or at least with the line-comment prefix removed. Trailing block
+            closers such as ``*/`` may still be present and are trimmed from
+            the captured message.
+        source_path: File the comment came from, stored on each match.
+        line_number: 1-based line of this comment text.
+        comment_style_name: Style identifier recorded on each match.
+        tag_search_pattern: Pattern built by ``build_tag_search_pattern``.
+
+    Returns:
+        A list of ``TaggedComment`` values, one per tag match, in left-to-right
+        order. The list is empty when the comment has no recognized tag.
+
+    Behavior:
+        Only the first tag on a line is recorded. A comment such as
+        ``TODO: fix this FIXME later`` is almost always one reminder, and
+        reporting both tags would double-count it in summaries. The captured
+        message has trailing ``*/`` or ``-->`` removed so block-comment closers
+        do not show up in the report.
+    """
+
+    pattern_match = tag_search_pattern.search(comment_text)
+    if pattern_match is None:
+        return []
+
+    raw_tag, raw_message = pattern_match.group(1), pattern_match.group(2)
+    cleaned_message = raw_message.strip()
+    for block_closer in ("*/", "-->"):
+        if cleaned_message.endswith(block_closer):
+            cleaned_message = cleaned_message[: -len(block_closer)].rstrip()
+
+    return [
+        TaggedComment(
+            source_path=source_path,
+            line_number=line_number,
+            tag=normalize_tag(raw_tag),
+            message=cleaned_message,
+            comment_style=comment_style_name,
+        )
+    ]
