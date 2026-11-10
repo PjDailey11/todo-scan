@@ -13,7 +13,7 @@ from pathlib import Path
 
 # These names are the usual package-manager, VCS, and tool-cache directories
 # that dwarf a project's own source. Walking them is slow and almost never
-# surfaces a TODO the author can act on. `.github` is deliberately not in the
+# surfaces a reminder the author can act on. `.github` is deliberately not in the
 # list: workflow files are source and often carry real reminders.
 DEFAULT_EXCLUDED_DIRECTORY_NAMES: frozenset[str] = frozenset(
     {

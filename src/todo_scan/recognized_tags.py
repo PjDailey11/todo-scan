@@ -5,10 +5,10 @@ from __future__ import annotations
 # These five tokens are the de-facto convention in most style guides and
 # issue-tracker integrations (GitHub, Jira, and many linters). The set stays
 # small and uppercase so a user-supplied filter can be compared with simple
-# membership after normalization. "XXX" is included because older codebases use
-# it as a louder synonym for FIXME, even though the letters can appear in
-# unrelated identifiers; callers who dislike that noise can drop it with a tag
-# filter instead of forcing a code change.
+# membership after normalization. The three-X token is included because older
+# codebases use it as a louder synonym for a fix-me reminder, even though those
+# letters can appear in unrelated identifiers; callers who dislike that noise
+# can drop it with a tag filter instead of forcing a code change.
 DEFAULT_RECOGNIZED_TAGS: frozenset[str] = frozenset(
     {"TODO", "FIXME", "HACK", "XXX", "NOTE"}
 )
