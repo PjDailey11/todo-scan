@@ -31,16 +31,24 @@ def test_iter_source_files_skips_excluded_directory_names(tmp_path: Path) -> Non
 
 
 def test_iter_source_files_does_not_follow_symlinks(tmp_path: Path) -> None:
-    """A symlink into another tree should be ignored so the walk cannot escape."""
+    """A symlink into another tree should be ignored so the walk cannot escape.
 
-    (tmp_path / "real.py").write_text("value = 1\n", encoding="utf-8")
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / "secret.py").write_text("secret = 1\n", encoding="utf-8")
-    (tmp_path / "link-dir").symlink_to(outside)
-    (tmp_path / "link.py").symlink_to(outside / "secret.py")
+    The destination tree is created *beside* the project root, not inside it.
+    Otherwise the walker would correctly find the real files and the test would
+    not be checking symlink handling at all.
+    """
 
-    walked_names = {path.name for path in iter_source_files(tmp_path)}
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "real.py").write_text("value = 1\n", encoding="utf-8")
+
+    outside_root = tmp_path / "outside"
+    outside_root.mkdir()
+    (outside_root / "secret.py").write_text("secret = 1\n", encoding="utf-8")
+    (project_root / "link-dir").symlink_to(outside_root)
+    (project_root / "link.py").symlink_to(outside_root / "secret.py")
+
+    walked_names = {path.name for path in iter_source_files(project_root)}
     assert walked_names == {"real.py"}
 
 
