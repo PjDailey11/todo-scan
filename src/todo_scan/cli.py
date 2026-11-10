@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from todo_scan import __version__
+from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -39,6 +40,16 @@ def build_argument_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {__version__}",
     )
+    parser.add_argument(
+        "--tag",
+        action="append",
+        dest="tags",
+        metavar="TAG",
+        help=(
+            "Limit results to this tag (case-insensitive, repeatable). "
+            "May also be a comma-separated list. Default: TODO, FIXME, HACK, XXX, NOTE."
+        ),
+    )
     return parser
 
 
@@ -46,6 +57,43 @@ import sys
 
 from todo_scan.project_scan import scan_project_tree
 from todo_scan.report import format_text_report
+
+def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
+    """Build the tag allow-list from repeated ``--tag`` arguments.
+
+    Parameters:
+        raw_tag_values: Values as passed on the command line, or ``None`` when
+            the flag was omitted. Each value may itself contain commas so
+            ``--tag TODO,FIXME`` works as well as two ``--tag`` flags.
+
+    Returns:
+        A frozenset of uppercase tags. When the flag is omitted, the default
+        recognized set is returned.
+
+    Behavior:
+        Empty pieces (a trailing comma, for example) are dropped. If the user
+        supplies only empty pieces, a ``ValueError`` is raised so the CLI can
+        turn it into a usage error rather than compiling a pattern that
+        matches every comment.
+
+    Raises:
+        ValueError: If at least one ``--tag`` was given but no non-empty tag
+            remained after splitting and stripping.
+    """
+
+    if not raw_tag_values:
+        return DEFAULT_RECOGNIZED_TAGS
+
+    collected_tags: set[str] = set()
+    for raw_value in raw_tag_values:
+        for piece in raw_value.split(","):
+            normalized = normalize_tag(piece)
+            if normalized:
+                collected_tags.add(normalized)
+
+    if not collected_tags:
+        raise ValueError("at least one non-empty --tag value is required")
+    return frozenset(collected_tags)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -74,7 +122,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"todo-scan: path not found: {project_root}", file=sys.stderr)
         return 2
 
-    tagged_comments = scan_project_tree(project_root)
+    try:
+        recognized_tags = collect_recognized_tags(arguments.tags)
+    except ValueError as exc:
+        print(f"todo-scan: {exc}", file=sys.stderr)
+        return 2
+
+    tagged_comments = scan_project_tree(project_root, recognized_tags=recognized_tags)
     report_text = format_text_report(tagged_comments, project_root=project_root)
     if report_text:
         sys.stdout.write(report_text)
