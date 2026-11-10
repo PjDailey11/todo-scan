@@ -102,3 +102,39 @@ def iter_source_files(
 
     discovered_files.sort()
     return discovered_files
+
+
+def filter_files_by_suffix(
+    file_paths: list[Path],
+    included_suffixes: frozenset[str] | None,
+) -> list[Path]:
+    """Return the subset of ``file_paths`` whose suffix is in the allow-list.
+
+    Parameters:
+        file_paths: Paths already discovered by ``iter_source_files``.
+        included_suffixes: Suffixes including the leading dot, for example
+            ``{".py", ".js"}``. When ``None``, the input list is returned
+            unchanged so the caller can treat "no filter" as a first-class
+            case instead of passing every known suffix.
+
+    Returns:
+        A new list in the same order as ``file_paths``. Paths with an empty
+        suffix (a file named ``Makefile``, for example) are dropped when a
+        filter is provided, because the comment-style table is suffix-based.
+
+    Behavior:
+        Comparison is case-insensitive. That matches how
+        ``comment_style_for_suffix`` already resolves ``.PY`` to the Python
+        style, and it keeps a CLI flag like ``--suffix .PY`` from silently
+        matching nothing on a case-sensitive filesystem.
+    """
+
+    if included_suffixes is None:
+        return list(file_paths)
+
+    lowered_suffixes = {suffix.lower() for suffix in included_suffixes}
+    return [
+        file_path
+        for file_path in file_paths
+        if file_path.suffix.lower() in lowered_suffixes
+    ]
