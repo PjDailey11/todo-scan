@@ -24,3 +24,32 @@ For local development, install the test extra as well:
 pip install -e ".[dev]"
 pytest
 ```
+
+## Usage
+
+Scan the current directory, or pass a project root or a single file:
+
+```bash
+todo-scan
+todo-scan path/to/project
+todo-scan src/app.py
+```
+
+Useful flags:
+
+```bash
+# Only report FIXME comments (repeat --tag or use a comma list)
+todo-scan --tag FIXME
+todo-scan --tag TODO,FIXME
+
+# Write a machine-readable or Markdown report
+todo-scan --format json --output todos.json
+todo-scan --format markdown --output todos.md
+```
+
+The process exits with status 0 when the scan succeeds, even if reminders were
+found. This is a reporter, not a linter; a non-zero "has findings" status is
+left for a future `--check` flag. A missing path exits with status 2.
+
+The default text format uses `path:line: TAG message` lines, which most
+terminals and editors treat as clickable locations.
