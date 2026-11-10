@@ -57,6 +57,12 @@ def build_argument_parser() -> argparse.ArgumentParser:
         dest="output_format",
         help="Report format (default: text).",
     )
+    parser.add_argument(
+        "--output",
+        dest="output_path",
+        metavar="FILE",
+        help="Write the report to FILE instead of standard output.",
+    )
     return parser
 
 
@@ -174,6 +180,12 @@ def main(argv: list[str] | None = None) -> int:
         output_format=arguments.output_format,
         project_root=project_root,
     )
-    if report_text:
+    if arguments.output_path:
+        try:
+            Path(arguments.output_path).write_text(report_text, encoding="utf-8")
+        except OSError as exc:
+            print(f"todo-scan: could not write {arguments.output_path}: {exc}", file=sys.stderr)
+            return 1
+    elif report_text:
         sys.stdout.write(report_text)
     return 0
