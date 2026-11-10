@@ -93,3 +93,45 @@ def format_json_report(
         for comment in tagged_comments
     ]
     return json.dumps(payload, indent=2) + "\n"
+
+
+def format_markdown_report(
+    tagged_comments: list[TaggedComment],
+    project_root: Path | None = None,
+) -> str:
+    """Render matches as a Markdown document grouped by file.
+
+    Parameters:
+        tagged_comments: Matches in walk order. Grouping uses that order, so
+            callers should not pre-shuffle the list if they want stable
+            headings.
+        project_root: Optional root used to relativize heading paths.
+
+    Returns:
+        A Markdown string ending in a newline, or a short "no tagged comments"
+        document when the list is empty, because an empty Markdown file is
+        easy to mistake for a failed run.
+
+    Behavior:
+        Each file becomes an ``##`` heading, and each match becomes a list
+        item with a line number, tag, and message. Grouping by file is more
+        useful in a README-style report than a flat table, especially when one
+        module accumulates many reminders.
+    """
+
+    if not tagged_comments:
+        return "No tagged comments found.\n"
+
+    sections: list[str] = ["# Tagged comments", ""]
+    current_path: str | None = None
+    for comment in tagged_comments:
+        display_path = _display_path(comment.source_path, project_root)
+        if display_path != current_path:
+            if current_path is not None:
+                sections.append("")
+            sections.append(f"## {display_path}")
+            sections.append("")
+            current_path = display_path
+        message_suffix = f" — {comment.message}" if comment.message else ""
+        sections.append(f"- Line {comment.line_number}: `{comment.tag}`{message_suffix}")
+    return "\n".join(sections) + "\n"
