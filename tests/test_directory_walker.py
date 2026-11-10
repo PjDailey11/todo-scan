@@ -53,7 +53,7 @@ def test_filter_files_by_suffix_is_case_insensitive() -> None:
 
 
 def test_filter_files_by_suffix_returns_all_paths_when_no_allow_list() -> None:
-    """``None`` means "no suffix filter," not "match nothing.""" "
+    """Passing None means no suffix filter is applied, not that nothing matches."""
 
     sample_paths = [Path("app.py"), Path("Makefile")]
     assert filter_files_by_suffix(sample_paths, None) == sample_paths
