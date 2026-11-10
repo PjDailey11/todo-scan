@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "todo-scan"
+version = "0.1.0"
+description = "Scan a project tree for TODO, FIXME, and related comment tags."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "PJ Dailey", email = "pjdailey13@gmail.com" }]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+todo-scan = "todo_scan.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/PjDailey11/todo-scan"
+Issues = "https://github.com/PjDailey11/todo-scan/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
