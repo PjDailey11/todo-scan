@@ -77,3 +77,90 @@ SEMICOLON_COMMENT_STYLE = CommentStyle(
     style_name="semicolon",
     line_prefix=";",
 )
+
+
+# Suffixes are compared in lowercase with the leading dot included so that
+# ".h" and "h" cannot be confused. Files with no suffix, or a suffix we have
+# not seen, return None; the scanner skips them rather than guessing, because
+# a wrong guess (treating a binary `.min` file as C, for example) produces
+# more bad matches than it saves.
+_SUFFIX_TO_COMMENT_STYLE: dict[str, CommentStyle] = {
+    ".py": HASH_COMMENT_STYLE,
+    ".pyi": HASH_COMMENT_STYLE,
+    ".rb": HASH_COMMENT_STYLE,
+    ".sh": HASH_COMMENT_STYLE,
+    ".bash": HASH_COMMENT_STYLE,
+    ".zsh": HASH_COMMENT_STYLE,
+    ".yml": HASH_COMMENT_STYLE,
+    ".yaml": HASH_COMMENT_STYLE,
+    ".toml": HASH_COMMENT_STYLE,
+    ".r": HASH_COMMENT_STYLE,
+    ".R": HASH_COMMENT_STYLE,
+    ".pl": HASH_COMMENT_STYLE,
+    ".c": C_STYLE_COMMENT_STYLE,
+    ".h": C_STYLE_COMMENT_STYLE,
+    ".cc": C_STYLE_COMMENT_STYLE,
+    ".cpp": C_STYLE_COMMENT_STYLE,
+    ".cxx": C_STYLE_COMMENT_STYLE,
+    ".hpp": C_STYLE_COMMENT_STYLE,
+    ".hh": C_STYLE_COMMENT_STYLE,
+    ".java": C_STYLE_COMMENT_STYLE,
+    ".js": C_STYLE_COMMENT_STYLE,
+    ".jsx": C_STYLE_COMMENT_STYLE,
+    ".ts": C_STYLE_COMMENT_STYLE,
+    ".tsx": C_STYLE_COMMENT_STYLE,
+    ".mjs": C_STYLE_COMMENT_STYLE,
+    ".cjs": C_STYLE_COMMENT_STYLE,
+    ".go": C_STYLE_COMMENT_STYLE,
+    ".rs": C_STYLE_COMMENT_STYLE,
+    ".swift": C_STYLE_COMMENT_STYLE,
+    ".kt": C_STYLE_COMMENT_STYLE,
+    ".kts": C_STYLE_COMMENT_STYLE,
+    ".cs": C_STYLE_COMMENT_STYLE,
+    ".php": C_STYLE_COMMENT_STYLE,
+    ".css": C_STYLE_COMMENT_STYLE,
+    ".scss": C_STYLE_COMMENT_STYLE,
+    ".jsonc": SLASH_SLASH_COMMENT_STYLE,
+    ".html": HTML_COMMENT_STYLE,
+    ".htm": HTML_COMMENT_STYLE,
+    ".xml": HTML_COMMENT_STYLE,
+    ".svg": HTML_COMMENT_STYLE,
+    ".md": HTML_COMMENT_STYLE,
+    ".markdown": HTML_COMMENT_STYLE,
+    ".sql": DASH_DASH_COMMENT_STYLE,
+    ".lua": DASH_DASH_COMMENT_STYLE,
+    ".hs": DASH_DASH_COMMENT_STYLE,
+    ".lisp": SEMICOLON_COMMENT_STYLE,
+    ".el": SEMICOLON_COMMENT_STYLE,
+    ".clj": SEMICOLON_COMMENT_STYLE,
+    ".cljs": SEMICOLON_COMMENT_STYLE,
+    ".scm": SEMICOLON_COMMENT_STYLE,
+}
+
+
+def comment_style_for_suffix(file_suffix: str) -> CommentStyle | None:
+    """Return the comment style registered for ``file_suffix``, if any.
+
+    Parameters:
+        file_suffix: The suffix including the leading dot, for example
+            ``".py"``. Case is preserved for the rare languages that distinguish
+            it (``.R`` vs ``.r`` both map to hash comments, so either works).
+
+    Returns:
+        The matching ``CommentStyle``, or ``None`` when the suffix is unknown
+        or empty.
+
+    Behavior:
+        Lookup is tried first with the suffix as given, then in lowercase.
+        That lets ``.PY`` still resolve without treating every mapping as
+        case-insensitive, which would collapse the two ``.R``/``.r`` keys
+        needlessly. Unknown suffixes return ``None`` instead of a default
+        style so binary or generated files are not scanned by accident.
+    """
+
+    if not file_suffix:
+        return None
+    exact_match = _SUFFIX_TO_COMMENT_STYLE.get(file_suffix)
+    if exact_match is not None:
+        return exact_match
+    return _SUFFIX_TO_COMMENT_STYLE.get(file_suffix.lower())
