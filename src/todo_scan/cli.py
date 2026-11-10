@@ -50,13 +50,20 @@ def build_argument_parser() -> argparse.ArgumentParser:
             "May also be a comma-separated list. Default: TODO, FIXME, HACK, XXX, NOTE."
         ),
     )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json", "markdown"),
+        default="text",
+        dest="output_format",
+        help="Report format (default: text).",
+    )
     return parser
 
 
 import sys
 
 from todo_scan.project_scan import scan_project_tree
-from todo_scan.report import format_text_report
+from todo_scan.report import format_json_report, format_markdown_report, format_text_report
 
 def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
     """Build the tag allow-list from repeated ``--tag`` arguments.
@@ -96,6 +103,39 @@ def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
     return frozenset(collected_tags)
 
 
+
+def render_report(
+    tagged_comments,
+    output_format: str,
+    project_root,
+) -> str:
+    """Render ``tagged_comments`` in the user-selected format.
+
+    Parameters:
+        tagged_comments: Matches from ``scan_project_tree``.
+        output_format: One of ``text``, ``json``, or ``markdown``, already
+            validated by argparse.
+        project_root: Path used to relativize file names in the report.
+
+    Returns:
+        The formatted report string, which may be empty for the text format
+        when there are no matches.
+
+    Behavior:
+        Unknown formats raise ``ValueError``. argparse should prevent that at
+        the CLI, but the helper stays strict so a mistaken internal call is
+        obvious in tests.
+    """
+
+    if output_format == "text":
+        return format_text_report(tagged_comments, project_root=project_root)
+    if output_format == "json":
+        return format_json_report(tagged_comments, project_root=project_root)
+    if output_format == "markdown":
+        return format_markdown_report(tagged_comments, project_root=project_root)
+    raise ValueError(f"unsupported report format: {output_format}")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI and return a process exit status.
 
@@ -129,7 +169,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     tagged_comments = scan_project_tree(project_root, recognized_tags=recognized_tags)
-    report_text = format_text_report(tagged_comments, project_root=project_root)
+    report_text = render_report(
+        tagged_comments,
+        output_format=arguments.output_format,
+        project_root=project_root,
+    )
     if report_text:
         sys.stdout.write(report_text)
     return 0
