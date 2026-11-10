@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from todo_scan.tagged_comment import TaggedComment
@@ -55,8 +56,6 @@ def _display_path(source_path: Path, project_root: Path | None) -> str:
     except ValueError:
         return str(source_path)
 
-
-import json
 
 
 def format_json_report(
