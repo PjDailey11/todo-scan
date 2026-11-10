@@ -1,0 +1,23 @@
+# Bytecode and packaging artifacts would only add noise to scans and releases.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Local virtualenvs and editor metadata should stay on the developer's machine.
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+.DS_Store
+
+# Test and type-checker caches are regenerated on every run.
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
