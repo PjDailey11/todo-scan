@@ -43,3 +43,19 @@ class CommentStyle:
 
 HASH_COMMENT_STYLE = CommentStyle(style_name="hash", line_prefix="#")
 """Line comments introduced by ``#`` (Python, Ruby, Shell, YAML, Toml, and similar)."""
+
+# C, C++, Java, JavaScript, TypeScript, Go, Rust, and many others share the
+# same two delimiters. We keep a slash-only style as well because some languages
+# (JSON-with-comments, certain shader dialects) allow `//` but not block
+# comments, and treating them as "c-style" would search for `/*` that never
+# legally appears.
+SLASH_SLASH_COMMENT_STYLE = CommentStyle(
+    style_name="slash-slash",
+    line_prefix="//",
+)
+C_STYLE_COMMENT_STYLE = CommentStyle(
+    style_name="c-style",
+    line_prefix="//",
+    block_start="/*",
+    block_end="*/",
+)
