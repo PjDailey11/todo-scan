@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from todo_scan import __version__
+from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
+from todo_scan.report import format_json_report, format_markdown_report, format_text_report
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -66,11 +69,6 @@ def build_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
-import sys
-
-from todo_scan.project_scan import scan_project_tree
-from todo_scan.report import format_json_report, format_markdown_report, format_text_report
-
 def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
     """Build the tag allow-list from repeated ``--tag`` arguments.
 
@@ -107,7 +105,6 @@ def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
     if not collected_tags:
         raise ValueError("at least one non-empty --tag value is required")
     return frozenset(collected_tags)
-
 
 
 def render_report(
