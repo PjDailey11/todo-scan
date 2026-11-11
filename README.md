@@ -42,6 +42,12 @@ Useful flags:
 todo-scan --tag FIXME
 todo-scan --tag TODO,FIXME
 
+# Only scan Python and JavaScript files
+todo-scan --suffix py,js
+
+# Skip extra directories on top of the built-in list (.git, node_modules, ...)
+todo-scan --exclude-dir fixtures --exclude-dir generated
+
 # Write a machine-readable or Markdown report
 todo-scan --format json --output todos.json
 todo-scan --format markdown --output todos.md
@@ -49,7 +55,9 @@ todo-scan --format markdown --output todos.md
 
 The process exits with status 0 when the scan succeeds, even if reminders were
 found. This is a reporter, not a linter; a non-zero "has findings" status is
-left for a future `--check` flag. A missing path exits with status 2.
+left for a future `--check` flag. A missing path, or an empty `--tag` or
+`--suffix` value, exits with status 2. Every option is described in
+[docs/options.md](docs/options.md).
 
 The default text format uses `path:line: TAG message` lines, which most
 terminals and editors treat as clickable locations.
