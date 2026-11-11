@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from todo_scan import __version__
+from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
 from todo_scan.report import format_json_report, format_markdown_report, format_text_report
@@ -61,6 +62,26 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help="Report format (default: text).",
     )
     parser.add_argument(
+        "--suffix",
+        action="append",
+        dest="suffixes",
+        metavar="SUFFIX",
+        help=(
+            "Only scan files with this suffix, e.g. .py (repeatable, comma lists "
+            "allowed; the leading dot is optional). Default: every recognized file."
+        ),
+    )
+    parser.add_argument(
+        "--exclude-dir",
+        action="append",
+        dest="excluded_directories",
+        metavar="NAME",
+        help=(
+            "Skip directories with this exact name, in addition to the built-in "
+            "list (.git, node_modules, .venv, ...). Repeatable."
+        ),
+    )
+    parser.add_argument(
         "--output",
         dest="output_path",
         metavar="FILE",
@@ -105,6 +126,80 @@ def collect_recognized_tags(raw_tag_values: list[str] | None) -> frozenset[str]:
     if not collected_tags:
         raise ValueError("at least one non-empty --tag value is required")
     return frozenset(collected_tags)
+
+
+def collect_included_suffixes(raw_suffix_values: list[str] | None) -> frozenset[str] | None:
+    """Build the file-suffix allow-list from repeated ``--suffix`` arguments.
+
+    Parameters:
+        raw_suffix_values: Values as passed on the command line, or ``None``
+            when the flag was omitted. Each value may contain commas, so
+            ``--suffix py,js`` is equivalent to two flags.
+
+    Returns:
+        ``None`` when the flag was omitted, meaning "do not filter by suffix".
+        Otherwise a frozenset of lowercase suffixes that always start with a
+        dot, because ``Path.suffix`` includes the dot and users commonly type
+        ``py`` instead of ``.py``.
+
+    Behavior:
+        Empty pieces are dropped. Case is folded here even though
+        ``filter_files_by_suffix`` also compares case-insensitively, so the
+        normalized set is predictable in tests and error messages.
+
+    Raises:
+        ValueError: If ``--suffix`` was given but every piece was empty. An
+            empty allow-list would silently scan nothing, which looks like a
+            clean project rather than a typo.
+    """
+
+    if raw_suffix_values is None:
+        return None
+
+    normalized_suffixes: set[str] = set()
+    for raw_value in raw_suffix_values:
+        for piece in raw_value.split(","):
+            stripped_piece = piece.strip().lower()
+            if not stripped_piece:
+                continue
+            if not stripped_piece.startswith("."):
+                stripped_piece = "." + stripped_piece
+            normalized_suffixes.add(stripped_piece)
+
+    if not normalized_suffixes:
+        raise ValueError("at least one non-empty --suffix value is required")
+    return frozenset(normalized_suffixes)
+
+
+def collect_excluded_directory_names(raw_directory_names: list[str] | None) -> frozenset[str]:
+    """Merge ``--exclude-dir`` values with the walker's built-in skip list.
+
+    Parameters:
+        raw_directory_names: Directory basenames from the command line, or
+            ``None`` when the flag was omitted.
+
+    Returns:
+        The union of ``DEFAULT_EXCLUDED_DIRECTORY_NAMES`` and the user's
+        names. Adding to the defaults, instead of replacing them, means that
+        ``--exclude-dir fixtures`` does not suddenly start walking
+        ``node_modules`` and ``.git``.
+
+    Behavior:
+        Names are matched exactly by the walker, so surrounding whitespace and
+        trailing slashes (``fixtures/`` from shell tab completion) are
+        stripped here. Names are kept case-sensitive because most
+        filesystems the tool runs on are case-sensitive.
+    """
+
+    if not raw_directory_names:
+        return DEFAULT_EXCLUDED_DIRECTORY_NAMES
+
+    user_directory_names = {
+        raw_name.strip().rstrip("/\\")
+        for raw_name in raw_directory_names
+    }
+    user_directory_names.discard("")
+    return DEFAULT_EXCLUDED_DIRECTORY_NAMES | frozenset(user_directory_names)
 
 
 def render_report(
@@ -167,11 +262,20 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         recognized_tags = collect_recognized_tags(arguments.tags)
+        included_suffixes = collect_included_suffixes(arguments.suffixes)
     except ValueError as exc:
         print(f"todo-scan: {exc}", file=sys.stderr)
         return 2
+    excluded_directory_names = collect_excluded_directory_names(
+        arguments.excluded_directories
+    )
 
-    tagged_comments = scan_project_tree(project_root, recognized_tags=recognized_tags)
+    tagged_comments = scan_project_tree(
+        project_root,
+        recognized_tags=recognized_tags,
+        excluded_directory_names=excluded_directory_names,
+        included_suffixes=included_suffixes,
+    )
     report_text = render_report(
         tagged_comments,
         output_format=arguments.output_format,
