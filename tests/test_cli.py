@@ -2,7 +2,15 @@
 
 from pathlib import Path
 
-from todo_scan.cli import collect_recognized_tags, main
+import pytest
+
+from todo_scan.cli import (
+    collect_excluded_directory_names,
+    collect_included_suffixes,
+    collect_recognized_tags,
+    main,
+)
+from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS
 
 
@@ -48,3 +56,48 @@ def test_main_writes_json_to_an_output_file(tmp_path: Path) -> None:
     report_text = report_path.read_text(encoding="utf-8")
     assert '"tag": "FIXME"' in report_text
     assert '"message": "handle this"' in report_text
+
+
+def test_collect_included_suffixes_adds_missing_dots_and_lowercases() -> None:
+    """``py`` and ``.PY`` should both mean the ``.py`` suffix."""
+
+    assert collect_included_suffixes(["py,.JS", " .md "]) == {".py", ".js", ".md"}
+    assert collect_included_suffixes(None) is None
+
+
+def test_collect_included_suffixes_rejects_only_empty_values() -> None:
+    """An empty allow-list would scan nothing, so it must be a usage error."""
+
+    with pytest.raises(ValueError):
+        collect_included_suffixes([" , "])
+
+
+def test_collect_excluded_directory_names_keeps_the_defaults() -> None:
+    """User names are added to the built-in skip list, never replace it."""
+
+    excluded_names = collect_excluded_directory_names(["fixtures/", " generated "])
+
+    assert {"fixtures", "generated"} <= excluded_names
+    assert DEFAULT_EXCLUDED_DIRECTORY_NAMES <= excluded_names
+    assert collect_excluded_directory_names(None) == DEFAULT_EXCLUDED_DIRECTORY_NAMES
+
+
+def test_main_applies_suffix_and_exclude_dir_filters(tmp_path: Path, capsys) -> None:
+    """Only ``.py`` files outside ``fixtures`` should be reported."""
+
+    (tmp_path / "app.py").write_text("# TODO keep\n", encoding="utf-8")
+    (tmp_path / "app.js").write_text("// TODO wrong suffix\n", encoding="utf-8")
+    fixtures_directory = tmp_path / "fixtures"
+    fixtures_directory.mkdir()
+    (fixtures_directory / "sample.py").write_text("# TODO excluded\n", encoding="utf-8")
+
+    exit_status = main([str(tmp_path), "--suffix", "py", "--exclude-dir", "fixtures"])
+
+    assert exit_status == 0
+    assert capsys.readouterr().out == "app.py:1: TODO keep\n"
+
+
+def test_main_returns_usage_status_for_an_empty_suffix(tmp_path: Path) -> None:
+    """``--suffix ,`` is a typo, not a request to scan nothing."""
+
+    assert main([str(tmp_path), "--suffix", ","]) == 2
