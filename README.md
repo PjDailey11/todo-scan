@@ -48,6 +48,9 @@ todo-scan --suffix py,js
 # Skip extra directories on top of the built-in list (.git, node_modules, ...)
 todo-scan --exclude-dir fixtures --exclude-dir generated
 
+# Print a per-tag count summary (to stderr) after the report
+todo-scan --stats
+
 # Write a machine-readable or Markdown report
 todo-scan --format json --output todos.json
 todo-scan --format markdown --output todos.md

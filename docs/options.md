@@ -2,7 +2,8 @@
 
 ```
 todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
-          [--format {text,json,markdown}] [--output FILE] [--version]
+          [--format {text,json,markdown}] [--stats] [--output FILE]
+          [--version]
 ```
 
 | Option | Default | Description |
@@ -12,6 +13,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--suffix SUFFIX` | every recognized file | Only scan files with these suffixes. Repeatable, comma lists allowed, leading dot optional. |
 | `--exclude-dir NAME` | built-in list | Skip directories with this exact name **in addition to** the built-in list. Repeatable. |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
+| `--stats` | off | Print a per-tag count summary to standard error after the report. |
 | `--output FILE` | standard output | Write the report to a file instead of printing it. |
 | `--version` | | Print the version and exit. |
 
@@ -62,6 +64,27 @@ todo-scan --format markdown > TODOS.md
 
 The JSON report is always an array, including when it is empty. If the output
 file cannot be written the tool prints an error and exits with status 1.
+
+## `--stats`
+
+```bash
+$ todo-scan --stats
+src/app.py:3: TODO handle empty input
+src/app.py:9: FIXME off-by-one on the last page
+tests/test_app.py:4: TODO cover unicode names
+TODO   2
+FIXME  1
+total  3
+```
+
+Tags are listed by descending count, ties alphabetically, and only tags with
+at least one match appear. A `total` line is always printed, even for an
+empty scan (`total  0`).
+
+The summary is written to **standard error**, not standard output. That keeps
+`todo-scan --format json --stats > todos.json` a valid JSON file while still
+showing the counts in the terminal or CI log. Redirect it with `2> stats.txt`
+if you want to keep it.
 
 ## Exit status
 

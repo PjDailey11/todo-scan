@@ -10,7 +10,12 @@ from todo_scan import __version__
 from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
-from todo_scan.report import format_json_report, format_markdown_report, format_text_report
+from todo_scan.report import (
+    format_json_report,
+    format_markdown_report,
+    format_tag_summary,
+    format_text_report,
+)
 
 
 def build_argument_parser() -> argparse.ArgumentParser:
@@ -79,6 +84,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Skip directories with this exact name, in addition to the built-in "
             "list (.git, node_modules, .venv, ...). Repeatable."
+        ),
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help=(
+            "Print a per-tag count summary to standard error after the report, "
+            "so piped JSON or Markdown output stays valid."
         ),
     )
     parser.add_argument(
@@ -289,4 +302,10 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     elif report_text:
         sys.stdout.write(report_text)
+
+    if arguments.stats:
+        # The summary goes to stderr on purpose: `--format json --stats > out.json`
+        # must still produce a parseable document, and stderr is shown in a
+        # terminal or CI log either way.
+        sys.stderr.write(format_tag_summary(tagged_comments))
     return 0

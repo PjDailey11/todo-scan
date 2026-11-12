@@ -1,5 +1,6 @@
 """Tests for CLI argument handling and the process entry point."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -101,3 +102,16 @@ def test_main_returns_usage_status_for_an_empty_suffix(tmp_path: Path) -> None:
     """``--suffix ,`` is a typo, not a request to scan nothing."""
 
     assert main([str(tmp_path), "--suffix", ","]) == 2
+
+
+def test_main_prints_stats_to_stderr_and_keeps_stdout_clean(tmp_path: Path, capsys) -> None:
+    """``--stats`` must not corrupt a JSON report written to stdout."""
+
+    (tmp_path / "app.py").write_text("# TODO one\n# TODO two\n# FIXME three\n", encoding="utf-8")
+
+    exit_status = main([str(tmp_path), "--format", "json", "--stats"])
+    captured = capsys.readouterr()
+
+    assert exit_status == 0
+    assert len(json.loads(captured.out)) == 3
+    assert captured.err == "TODO   2\nFIXME  1\ntotal  3\n"
