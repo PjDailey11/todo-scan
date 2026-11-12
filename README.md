@@ -1,21 +1,48 @@
 # todo-scan
 
 Scan a project tree for `TODO`, `FIXME`, `HACK`, `XXX`, and `NOTE` comments and
-print them as a readable report.
+print them as a readable report in text, JSON, or Markdown.
 
-The tool is a heuristic comment scanner, not a full language parser. That keeps
-it small and dependency-free, at the cost of occasional false positives inside
-strings or unusual comment dialects. Usage, install steps, and those limitations
-are documented in the sections below as the project grows.
+todo-scan is a small, dependency-free Python CLI. It is a heuristic comment
+scanner, not a full language parser: that keeps it fast and easy to read, at
+the cost of occasional false positives inside strings or unusual comment
+dialects (see [What it does and does not do](#what-it-does-and-does-not-do)).
+
+## Motivation
+
+Reminder comments pile up quietly. `grep -rn TODO` finds them, but it also
+matches URLs, string literals, `node_modules`, build output, and binary files,
+and its output is hard to feed into other tools. todo-scan only looks inside
+real comment delimiters, skips tool directories by default, and can emit JSON
+for scripts, Markdown for a tracking issue, a per-tag summary, or a non-zero
+exit status for CI.
+
+## Features
+
+- Finds `TODO`, `FIXME`, `HACK`, `XXX`, and `NOTE` (or any tags you choose)
+  case-insensitively as whole words, with an optional colon.
+- Understands `#`, `//`, `/* */`, `<!-- -->`, `--`, and `;` comments, chosen by
+  file suffix; `https://` is not mistaken for a `//` comment.
+- Skips `.git`, `node_modules`, virtualenvs, caches, and build output; never
+  follows symlinks; skips binary, oversized (>1 MiB), and non-UTF-8 files.
+- Filters by tag (`--tag`), file suffix (`--suffix`), and extra directory
+  names (`--exclude-dir`).
+- Text, JSON, and Markdown reports, optionally written to a file.
+- `--stats` per-tag summary and a `--check` mode that fails CI when tags are found.
+- No runtime dependencies; Python 3.9+.
 
 ## Install
-
-todo-scan requires Python 3.9 or newer and has no runtime dependencies.
 
 ```bash
 git clone https://github.com/PjDailey11/todo-scan.git
 cd todo-scan
 pip install .
+```
+
+Or install straight from GitHub:
+
+```bash
+pip install git+https://github.com/PjDailey11/todo-scan.git
 ```
 
 For local development, install the test extra as well:
@@ -51,20 +78,106 @@ todo-scan --exclude-dir fixtures --exclude-dir generated
 # Print a per-tag count summary (to stderr) after the report
 todo-scan --stats
 
+# Fail with exit status 1 if any FIXME is left (for CI)
+todo-scan --check --tag FIXME
+
 # Write a machine-readable or Markdown report
 todo-scan --format json --output todos.json
 todo-scan --format markdown --output todos.md
 ```
 
-By default the process exits with status 0 when the scan succeeds, even if
-reminders were found, because it is a reporter. Add `--check` to exit with
-status 1 when any matching tag is found, which is handy in CI
-(`todo-scan --check --tag FIXME`; see [docs/ci.md](docs/ci.md)). A missing path, or an empty `--tag` or
-`--suffix` value, exits with status 2. Every option is described in
-[docs/options.md](docs/options.md).
+### Sample output
 
-The default text format uses `path:line: TAG message` lines, which most
-terminals and editors treat as clickable locations.
+Text (the default) uses `path:line: TAG message` lines, which most terminals
+and editors treat as clickable locations:
+
+```
+$ todo-scan --stats
+src/app.py:2: TODO handle empty input
+src/app.py:5: FIXME off-by-one on the last page
+src/client.js:1: NOTE keep in sync with app.py
+tests/test_app.py:1: TODO cover unicode names
+TODO   2
+FIXME  1
+NOTE   1
+total  4
+```
+
+JSON is always an array, even when empty:
+
+```
+$ todo-scan --format json --tag FIXME
+[
+  {
+    "path": "src/app.py",
+    "line": 5,
+    "tag": "FIXME",
+    "message": "off-by-one on the last page",
+    "comment_style": "hash"
+  }
+]
+```
+
+Markdown groups matches by file:
+
+```
+$ todo-scan --format markdown --suffix py
+# Tagged comments
+
+## src/app.py
+
+- Line 2: `TODO` — handle empty input
+- Line 5: `FIXME` — off-by-one on the last page
+
+## tests/test_app.py
+
+- Line 1: `TODO` — cover unicode names
+```
+
+## Options
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `PROJECT_PATH` | `.` | Directory to walk, or a single file. |
+| `--tag TAG` | `TODO,FIXME,HACK,XXX,NOTE` | Tags to report; repeatable, comma lists allowed. |
+| `--suffix SUFFIX` | every recognized file | Only scan these suffixes; leading dot optional. |
+| `--exclude-dir NAME` | built-in list | Extra directory basenames to skip, added to the defaults. |
+| `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
+| `--stats` | off | Per-tag counts on standard error after the report. |
+| `--check` | off | Exit 1 when any matching tag is found. |
+| `--output FILE` | stdout | Write the report to a file. |
+| `--version` | | Print the version. |
+
+Exit status: `0` when the scan ran (and, with `--check`, found nothing), `1`
+when `--check` found tags or `--output` could not be written, `2` for usage
+errors such as a missing path or an empty `--tag` / `--suffix`. Full details
+are in [docs/options.md](docs/options.md) and [docs/ci.md](docs/ci.md).
+
+## Project structure
+
+```
+todo-scan/
+├── src/todo_scan/
+│   ├── cli.py               argument parsing, flag normalization, exit codes
+│   ├── project_scan.py      library entry point: walk + filter + scan
+│   ├── directory_walker.py  sorted tree walk, skip list, suffix filter
+│   ├── scanner.py           per-file checks and comment/tag detection
+│   ├── comment_styles.py    comment delimiters per file suffix
+│   ├── tag_pattern.py       compiled regex for the tag allow-list
+│   ├── recognized_tags.py   default tags and normalization
+│   ├── tagged_comment.py    the TaggedComment record
+│   └── report.py            text/JSON/Markdown formatters and tag summary
+├── tests/                   pytest suite, one module per source module
+└── docs/                    design and usage guides
+```
+
+## How it works
+
+The scan is a short pipeline: walk the tree (skipping tool directories and
+symlinks), optionally filter by suffix, scan each file's comments with one
+compiled tag regex, and format the resulting `TaggedComment` records. Each
+stage is a plain function in its own module so it can be tested alone. The
+full walkthrough is in [docs/how-it-works.md](docs/how-it-works.md).
 
 ## What it does and does not do
 
@@ -85,8 +198,32 @@ A few deliberate rules keep the noise down:
   tree you passed in.
 - `.gitignore` is not honored yet; that is a planned improvement.
 
-Default tags are `TODO`, `FIXME`, `HACK`, `XXX`, and `NOTE`. They are matched
-case-insensitively as whole words, with an optional colon before the message.
+## Testing
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+The suite uses pytest's `tmp_path` fixture to build small throwaway project
+trees, so tests never depend on files outside the repository. CLI tests call
+`todo_scan.cli.main(argv)` directly and check its return value and captured
+output instead of spawning a subprocess.
+
+## Roadmap
+
+- Honor `.gitignore` rules while walking the tree.
+- A `--sort` option (by file, by tag, or by count).
+- Optional `git blame` author/date per match.
+- More comment dialects (for example Haskell `{- -}` and Erlang `%`).
+
+## Contributing
+
+Issues and pull requests are welcome. Please keep changes small and focused:
+one behavior per pull request, with a test for it and an update to the README
+or the matching guide in [docs/](docs/README.md). Run `pytest` before opening a
+pull request. Public functions need a docstring that covers parameters, return
+value, and edge cases.
 
 ## License
 
