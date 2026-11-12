@@ -7,6 +7,7 @@ the quick tour; the pages here explain the design and every option in detail.
 | --- | --- |
 | [How it works](how-it-works.md) | The scan pipeline: walking, filtering, comment detection, tag matching, and reporting. |
 | [Command-line options](options.md) | Every CLI flag, its default, and examples. |
+| [Using todo-scan in CI](ci.md) | Failing a build with `--check`, gating on specific tags, and a GitHub Actions example. |
 
 If you change behavior in `src/todo_scan`, update the matching guide in the
 same pull request so the docs never describe an older version of the tool.
