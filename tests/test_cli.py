@@ -115,3 +115,28 @@ def test_main_prints_stats_to_stderr_and_keeps_stdout_clean(tmp_path: Path, caps
     assert exit_status == 0
     assert len(json.loads(captured.out)) == 3
     assert captured.err == "TODO   2\nFIXME  1\ntotal  3\n"
+
+
+def test_main_check_returns_one_when_tags_are_found(tmp_path: Path, capsys) -> None:
+    """``--check`` fails the run but still prints the report for the CI log."""
+
+    (tmp_path / "app.py").write_text("# FIXME before release\n", encoding="utf-8")
+
+    exit_status = main([str(tmp_path), "--check"])
+
+    assert exit_status == 1
+    assert capsys.readouterr().out == "app.py:1: FIXME before release\n"
+
+
+def test_main_check_returns_zero_when_filtered_tags_are_absent(tmp_path: Path) -> None:
+    """Gating on ``--tag FIXME`` should ignore other tags such as TODO."""
+
+    (tmp_path / "app.py").write_text("# TODO later is fine\n", encoding="utf-8")
+
+    assert main([str(tmp_path), "--check", "--tag", "FIXME"]) == 0
+
+
+def test_main_check_keeps_usage_errors_at_status_two() -> None:
+    """A bad path must not be confused with "tags found" in CI."""
+
+    assert main(["/this/path/does/not/exist", "--check"]) == 2
