@@ -2,7 +2,8 @@
 
 ```
 todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
-          [--format {text,json,markdown}] [--stats] [--output FILE]
+          [--format {text,json,markdown}] [--stats] [--check]
+          [--output FILE]
           [--version]
 ```
 
@@ -14,6 +15,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--exclude-dir NAME` | built-in list | Skip directories with this exact name **in addition to** the built-in list. Repeatable. |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Print a per-tag count summary to standard error after the report. |
+| `--check` | off | Exit with status 1 when any matching tag is found. See [ci.md](ci.md). |
 | `--output FILE` | standard output | Write the report to a file instead of printing it. |
 | `--version` | | Print the version and exit. |
 
@@ -90,6 +92,6 @@ if you want to keep it.
 
 | Status | Meaning |
 | --- | --- |
-| 0 | The scan ran. Tags may or may not have been found. |
-| 1 | The report could not be written to `--output`. |
+| 0 | The scan ran. Without `--check`, tags may or may not have been found; with `--check`, none were found. |
+| 1 | `--check` was given and tags were found, or the report could not be written to `--output`. |
 | 2 | Usage error: missing path, or an empty `--tag` / `--suffix` value. |

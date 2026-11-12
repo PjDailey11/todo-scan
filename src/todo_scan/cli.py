@@ -95,6 +95,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--check",
+        action="store_true",
+        help=(
+            "Exit with status 1 when any tagged comment is found (for CI). "
+            "The report is still printed so the log shows what failed."
+        ),
+    )
+    parser.add_argument(
         "--output",
         dest="output_path",
         metavar="FILE",
@@ -256,9 +264,11 @@ def main(argv: list[str] | None = None) -> int:
             to call from tests.
 
     Returns:
-        ``0`` after a successful scan, even when no tags are found. This tool
-        is a reporter, not a linter; a non-zero "has TODOs" status is left for
-        a dedicated ``--check`` flag so CI users can opt into that behavior.
+        ``0`` after a successful scan, even when tags are found, because by
+        default this tool is a reporter, not a linter. With ``--check``, a
+        scan that found at least one tag returns ``1`` so CI users can opt
+        into failing the build. ``1`` is also returned when ``--output``
+        cannot be written, and ``2`` for usage errors.
 
     Behavior:
         Writes the text report to standard output. A missing project path is
@@ -308,4 +318,10 @@ def main(argv: list[str] | None = None) -> int:
         # must still produce a parseable document, and stderr is shown in a
         # terminal or CI log either way.
         sys.stderr.write(format_tag_summary(tagged_comments))
+
+    # Status 1 is reserved for "findings" (and output write failures); usage
+    # errors stay at 2 above, so a CI step can tell a bad invocation apart
+    # from a project that still has FIXMEs in it.
+    if arguments.check and tagged_comments:
+        return 1
     return 0

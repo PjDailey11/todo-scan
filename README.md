@@ -56,9 +56,10 @@ todo-scan --format json --output todos.json
 todo-scan --format markdown --output todos.md
 ```
 
-The process exits with status 0 when the scan succeeds, even if reminders were
-found. This is a reporter, not a linter; a non-zero "has findings" status is
-left for a future `--check` flag. A missing path, or an empty `--tag` or
+By default the process exits with status 0 when the scan succeeds, even if
+reminders were found, because it is a reporter. Add `--check` to exit with
+status 1 when any matching tag is found, which is handy in CI
+(`todo-scan --check --tag FIXME`; see [docs/ci.md](docs/ci.md)). A missing path, or an empty `--tag` or
 `--suffix` value, exits with status 2. Every option is described in
 [docs/options.md](docs/options.md).
 
