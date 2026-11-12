@@ -3,7 +3,13 @@
 import json
 from pathlib import Path
 
-from todo_scan.report import format_json_report, format_markdown_report, format_text_report
+from todo_scan.report import (
+    count_comments_by_tag,
+    format_json_report,
+    format_markdown_report,
+    format_tag_summary,
+    format_text_report,
+)
 from todo_scan.tagged_comment import TaggedComment
 
 
@@ -57,3 +63,40 @@ def test_format_markdown_report_groups_matches_under_a_file_heading(tmp_path: Pa
     assert "- Line 4: `TODO` — tighten this later" in report
     assert "- Line 9: `FIXME`" in report
     assert format_markdown_report([]) == "No tagged comments found.\n"
+
+
+def _comment_with_tag(tag: str, line_number: int) -> TaggedComment:
+    """Build a minimal match; only the tag matters for the summary tests."""
+
+    return TaggedComment(Path("app.py"), line_number, tag, "", "hash")
+
+
+def test_count_comments_by_tag_orders_by_count_then_name() -> None:
+    """Higher counts come first and ties break alphabetically for stable output."""
+
+    tagged_comments = [
+        _comment_with_tag("TODO", 1),
+        _comment_with_tag("NOTE", 2),
+        _comment_with_tag("TODO", 3),
+        _comment_with_tag("FIXME", 4),
+    ]
+
+    counts_by_tag = count_comments_by_tag(tagged_comments)
+
+    assert list(counts_by_tag.items()) == [("TODO", 2), ("FIXME", 1), ("NOTE", 1)]
+
+
+def test_format_tag_summary_aligns_columns_and_adds_total() -> None:
+    """Labels are padded to the widest label so counts line up."""
+
+    summary_text = format_tag_summary(
+        [_comment_with_tag("TODO", 1), _comment_with_tag("FIXME", 2)]
+    )
+
+    assert summary_text == "FIXME  1\nTODO   1\ntotal  2\n"
+
+
+def test_format_tag_summary_reports_zero_for_an_empty_scan() -> None:
+    """An empty scan still prints a total so it is distinguishable from a crash."""
+
+    assert format_tag_summary([]) == "total  0\n"
