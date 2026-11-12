@@ -134,3 +134,53 @@ def format_markdown_report(
         message_suffix = f" — {comment.message}" if comment.message else ""
         sections.append(f"- Line {comment.line_number}: `{comment.tag}`{message_suffix}")
     return "\n".join(sections) + "\n"
+
+
+def count_comments_by_tag(tagged_comments: list[TaggedComment]) -> dict[str, int]:
+    """Count how many matches each tag has.
+
+    Parameters:
+        tagged_comments: Matches from ``scan_project_tree``. Tags are already
+            uppercase in ``TaggedComment``, so no further normalization is
+            needed here.
+
+    Returns:
+        A dictionary from tag to count, ordered by descending count and then
+        alphabetically by tag. The tie-break keeps the order deterministic,
+        which matters for tests and for diffing two summaries in CI logs.
+        Tags with zero matches are not included.
+    """
+
+    counts_by_tag: dict[str, int] = {}
+    for comment in tagged_comments:
+        counts_by_tag[comment.tag] = counts_by_tag.get(comment.tag, 0) + 1
+    ordered_tags = sorted(counts_by_tag, key=lambda tag: (-counts_by_tag[tag], tag))
+    return {tag: counts_by_tag[tag] for tag in ordered_tags}
+
+
+def format_tag_summary(tagged_comments: list[TaggedComment]) -> str:
+    """Render a small per-tag count table followed by a total line.
+
+    Parameters:
+        tagged_comments: Matches to summarize.
+
+    Returns:
+        A newline-terminated string such as::
+
+            TODO   3
+            FIXME  1
+            total  4
+
+        or ``"total  0\\n"`` when there are no matches, so a summary is always
+        printed and an empty scan is visibly distinct from a crashed one.
+
+    Behavior:
+        The label column is padded to the longest label (including
+        ``total``) so the counts line up regardless of which custom tags were
+        requested with ``--tag``.
+    """
+
+    counts_by_tag = count_comments_by_tag(tagged_comments)
+    summary_rows = list(counts_by_tag.items()) + [("total", len(tagged_comments))]
+    label_width = max(len(label) for label, _ in summary_rows)
+    return "".join(f"{label.ljust(label_width)}  {count}\n" for label, count in summary_rows)
