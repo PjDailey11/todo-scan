@@ -3,6 +3,7 @@
 ```
 todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
           [--no-gitignore]
+          [--sort {file,tag,count}]
           [--format {text,json,markdown}] [--stats] [--check]
           [--output FILE]
           [--version]
@@ -15,6 +16,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--suffix SUFFIX` | every recognized file | Only scan files with these suffixes. Repeatable, comma lists allowed, leading dot optional. |
 | `--exclude-dir NAME` | built-in list | Skip directories with this exact name **in addition to** the built-in list. Repeatable. |
 | `--no-gitignore` | off (gitignore honored) | Do not apply the project's top-level `.gitignore`. |
+| `--sort ORDER` | `file` | `file`, `tag`, or `count`. See below. |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Print a per-tag count summary to standard error after the report. |
 | `--check` | off | Exit with status 1 when any matching tag is found. See [ci.md](ci.md). |
@@ -74,6 +76,32 @@ todo-scan --no-gitignore  # audit everything, including ignored files
 list above still applies. When `PROJECT_PATH` is a single file it is always
 scanned, even if `.gitignore` matches it. Supported pattern syntax and known
 gaps are described in [how-it-works.md](how-it-works.md#gitignore-support).
+
+## `--sort`
+
+```
+$ todo-scan --sort file      # default: path, then line
+alpha.py:1: TODO alpha task
+beta.py:1: FIXME beta bug
+beta.py:2: TODO beta task
+
+$ todo-scan --sort tag       # tag name A-Z, then path and line
+beta.py:1: FIXME beta bug
+alpha.py:1: TODO alpha task
+beta.py:2: TODO beta task
+
+$ todo-scan --sort count     # files with the most matches first
+beta.py:1: FIXME beta bug
+beta.py:2: TODO beta task
+alpha.py:1: TODO alpha task
+```
+
+Ties always fall back to path and line, so output is deterministic. The order
+applies to every format, including JSON. The Markdown report starts a new file
+heading whenever the file changes, so `--sort tag --format markdown` can show
+the same file heading more than once; `file` or `count` give one heading per
+file. `--stats` is unaffected (it always lists tags by descending count). An
+unknown value is a usage error (exit status 2).
 
 ## `--format` and `--output`
 

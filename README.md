@@ -30,6 +30,8 @@ exit status for CI.
 - Filters by tag (`--tag`), file suffix (`--suffix`), and extra directory
   names (`--exclude-dir`).
 - Text, JSON, and Markdown reports, optionally written to a file.
+- `--sort file|tag|count` to read results by location, grouped by tag, or
+  busiest files first.
 - `--stats` per-tag summary and a `--check` mode that fails CI when tags are found.
 - No runtime dependencies; Python 3.9+.
 
@@ -76,6 +78,10 @@ todo-scan --suffix py,js
 
 # Skip extra directories on top of the built-in list (.git, node_modules, ...)
 todo-scan --exclude-dir fixtures --exclude-dir generated
+
+# Group all FIXMEs together, or list the files with the most reminders first
+todo-scan --sort tag
+todo-scan --sort count
 
 # Include files that the project's .gitignore would normally hide
 todo-scan --no-gitignore
@@ -148,6 +154,7 @@ $ todo-scan --format markdown --suffix py
 | `--suffix SUFFIX` | every recognized file | Only scan these suffixes; leading dot optional. |
 | `--exclude-dir NAME` | built-in list | Extra directory basenames to skip, added to the defaults. |
 | `--no-gitignore` | off | Do not apply the top-level `.gitignore` while walking. |
+| `--sort ORDER` | `file` | `file` (path, line), `tag` (by tag name), or `count` (busiest files first). |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Per-tag counts on standard error after the report. |
 | `--check` | off | Exit 1 when any matching tag is found. |
@@ -173,6 +180,7 @@ todo-scan/
 │   ├── tag_pattern.py       compiled regex for the tag allow-list
 │   ├── recognized_tags.py   default tags and normalization
 │   ├── tagged_comment.py    the TaggedComment record
+│   ├── result_ordering.py   --sort orders (file, tag, count)
 │   └── report.py            text/JSON/Markdown formatters and tag summary
 ├── tests/                   pytest suite, one module per source module
 └── docs/                    design and usage guides
@@ -182,7 +190,7 @@ todo-scan/
 
 The scan is a short pipeline: walk the tree (skipping tool directories,
 gitignored paths, and symlinks), optionally filter by suffix, scan each file's comments with one
-compiled tag regex, and format the resulting `TaggedComment` records. Each
+compiled tag regex, put the matches in the `--sort` order, and format the resulting `TaggedComment` records. Each
 stage is a plain function in its own module so it can be tested alone. The
 full walkthrough is in [docs/how-it-works.md](docs/how-it-works.md).
 
@@ -226,7 +234,6 @@ output instead of spawning a subprocess.
 ## Roadmap
 
 - Read nested `.gitignore` files and `.git/info/exclude`.
-- A `--sort` option (by file, by tag, or by count).
 - Optional `git blame` author/date per match.
 - More comment dialects (for example Haskell `{- -}` and Erlang `%`).
 
