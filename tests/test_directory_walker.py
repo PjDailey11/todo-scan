@@ -7,6 +7,7 @@ from todo_scan.directory_walker import (
     filter_files_by_suffix,
     iter_source_files,
 )
+from todo_scan.gitignore_rules import parse_gitignore_lines
 
 
 def test_iter_source_files_skips_excluded_directory_names(tmp_path: Path) -> None:
@@ -65,3 +66,27 @@ def test_filter_files_by_suffix_returns_all_paths_when_no_allow_list() -> None:
 
     sample_paths = [Path("app.py"), Path("Makefile")]
     assert filter_files_by_suffix(sample_paths, None) == sample_paths
+
+
+def test_iter_source_files_prunes_paths_matched_by_gitignore_rules(tmp_path: Path) -> None:
+    """Ignored files are dropped and ignored directories are never entered."""
+
+    kept_source = tmp_path / "src" / "app.py"
+    kept_source.parent.mkdir()
+    kept_source.write_text("# TODO keep\n", encoding="utf-8")
+    (tmp_path / "debug.log").write_text("TODO noise\n", encoding="utf-8")
+    generated_dir = tmp_path / "src" / "generated"
+    generated_dir.mkdir()
+    (generated_dir / "api.py").write_text("# TODO generated\n", encoding="utf-8")
+
+    ignore_rules = parse_gitignore_lines(["*.log", "generated/"])
+    walked_paths = iter_source_files(tmp_path, gitignore_rules=ignore_rules)
+    assert walked_paths == [kept_source]
+
+
+def test_iter_source_files_without_rules_keeps_previous_behavior(tmp_path: Path) -> None:
+    """Library callers that pass no rules must still see every non-skipped file."""
+
+    (tmp_path / "debug.log").write_text("x\n", encoding="utf-8")
+    assert iter_source_files(tmp_path) == [tmp_path / "debug.log"]
+    assert iter_source_files(tmp_path, gitignore_rules=[]) == [tmp_path / "debug.log"]
