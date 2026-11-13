@@ -17,6 +17,9 @@ directory_walker.filter_files_by_suffix optional suffix allow-list
 scanner.scan_source_file                per file: size/binary/UTF-8 checks,
    │                                    comment detection, tag matching
    ▼
+result_ordering.sort_tagged_comments    --sort: file, tag, or count order
+   │
+   ▼
 report.format_*_report                  text, JSON, or Markdown
 ```
 
@@ -96,7 +99,15 @@ optional colon, and the rest of the comment becomes the message. Matches are
 normalized to uppercase in the `TaggedComment` record so reports can group
 them without re-normalizing.
 
-## 5. Reporting
+## 5. Ordering
+
+`sort_tagged_comments` returns a new list in the order chosen with `--sort`:
+`file` (path, then line), `tag` (tag name, then location), or `count` (files
+with the most matches first). It runs after the scan and before any formatter,
+so every output format agrees and the scanner never needs to know how results
+will be read. Ties fall back to path and line for deterministic output.
+
+## 6. Reporting
 
 `report.py` turns the list of `TaggedComment` values into:
 

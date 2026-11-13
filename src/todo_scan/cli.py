@@ -10,6 +10,7 @@ from todo_scan import __version__
 from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
+from todo_scan.result_ordering import DEFAULT_SORT_ORDER, SORT_ORDERS, sort_tagged_comments
 from todo_scan.report import (
     format_json_report,
     format_markdown_report,
@@ -65,6 +66,16 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default="text",
         dest="output_format",
         help="Report format (default: text).",
+    )
+    parser.add_argument(
+        "--sort",
+        choices=SORT_ORDERS,
+        default=DEFAULT_SORT_ORDER,
+        dest="sort_order",
+        help=(
+            "Order results by file (path, then line; default), tag (grouped by "
+            "tag name), or count (files with the most matches first)."
+        ),
     )
     parser.add_argument(
         "--suffix",
@@ -309,6 +320,11 @@ def main(argv: list[str] | None = None) -> int:
         included_suffixes=included_suffixes,
         respect_gitignore=arguments.respect_gitignore,
     )
+    # Ordering happens after the scan and before every formatter so text,
+    # JSON, and Markdown all agree. The Markdown formatter groups consecutive
+    # rows by file, so "--sort tag" can repeat a file heading; that is the
+    # honest view of a tag-first ordering rather than a bug.
+    tagged_comments = sort_tagged_comments(tagged_comments, arguments.sort_order)
     report_text = render_report(
         tagged_comments,
         output_format=arguments.output_format,

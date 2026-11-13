@@ -174,3 +174,58 @@ def test_main_scans_an_explicit_file_even_if_gitignore_matches_it(
 
     assert main([str(ignored_file)]) == 0
     assert "FIXME still wanted" in capsys.readouterr().out
+
+
+def _write_sort_fixture(project_root: Path) -> None:
+    """One file with a single TODO and one with two matches, so orders differ."""
+
+    (project_root / "alpha.py").write_text("# TODO alpha task\n", encoding="utf-8")
+    (project_root / "beta.py").write_text(
+        "# FIXME beta bug\n# TODO beta task\n", encoding="utf-8"
+    )
+
+
+def test_main_sort_defaults_to_file_order(tmp_path: Path, capsys) -> None:
+    _write_sort_fixture(tmp_path)
+    assert main([str(tmp_path)]) == 0
+    assert capsys.readouterr().out == (
+        "alpha.py:1: TODO alpha task\n"
+        "beta.py:1: FIXME beta bug\n"
+        "beta.py:2: TODO beta task\n"
+    )
+
+
+def test_main_sort_tag_and_count_reorder_the_report(tmp_path: Path, capsys) -> None:
+    _write_sort_fixture(tmp_path)
+
+    assert main([str(tmp_path), "--sort", "tag"]) == 0
+    assert capsys.readouterr().out == (
+        "beta.py:1: FIXME beta bug\n"
+        "alpha.py:1: TODO alpha task\n"
+        "beta.py:2: TODO beta task\n"
+    )
+
+    assert main([str(tmp_path), "--sort", "count"]) == 0
+    assert capsys.readouterr().out == (
+        "beta.py:1: FIXME beta bug\n"
+        "beta.py:2: TODO beta task\n"
+        "alpha.py:1: TODO alpha task\n"
+    )
+
+
+def test_main_sort_applies_to_json_output(tmp_path: Path, capsys) -> None:
+    """Every format shares the ordering, not just the text report."""
+
+    _write_sort_fixture(tmp_path)
+    assert main([str(tmp_path), "--sort", "tag", "--format", "json"]) == 0
+    reported_tags = [row["tag"] for row in json.loads(capsys.readouterr().out)]
+    assert reported_tags == ["FIXME", "TODO", "TODO"]
+
+
+def test_main_rejects_an_unknown_sort_order(tmp_path: Path, capsys) -> None:
+    """argparse turns a bad --sort value into exit status 2 with a message."""
+
+    with pytest.raises(SystemExit) as exit_info:
+        main([str(tmp_path), "--sort", "severity"])
+    assert exit_info.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err
