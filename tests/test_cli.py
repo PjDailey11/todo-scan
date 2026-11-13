@@ -140,3 +140,37 @@ def test_main_check_keeps_usage_errors_at_status_two() -> None:
     """A bad path must not be confused with "tags found" in CI."""
 
     assert main(["/this/path/does/not/exist", "--check"]) == 2
+
+
+def test_main_honors_gitignore_by_default_and_no_gitignore_disables_it(
+    tmp_path: Path, capsys
+) -> None:
+    """Ignored files are skipped unless the user opts out with --no-gitignore."""
+
+    (tmp_path / ".gitignore").write_text("generated/\n", encoding="utf-8")
+    (tmp_path / "app.py").write_text("# TODO real work\n", encoding="utf-8")
+    generated_dir = tmp_path / "generated"
+    generated_dir.mkdir()
+    (generated_dir / "client.py").write_text("# TODO regenerate\n", encoding="utf-8")
+
+    assert main([str(tmp_path)]) == 0
+    assert capsys.readouterr().out == "app.py:1: TODO real work\n"
+
+    assert main([str(tmp_path), "--no-gitignore"]) == 0
+    assert capsys.readouterr().out == (
+        "app.py:1: TODO real work\n"
+        "generated/client.py:1: TODO regenerate\n"
+    )
+
+
+def test_main_scans_an_explicit_file_even_if_gitignore_matches_it(
+    tmp_path: Path, capsys
+) -> None:
+    """Naming a file directly is a request to scan it, ignore rules or not."""
+
+    (tmp_path / ".gitignore").write_text("*.py\n", encoding="utf-8")
+    ignored_file = tmp_path / "scratch.py"
+    ignored_file.write_text("# FIXME still wanted\n", encoding="utf-8")
+
+    assert main([str(ignored_file)]) == 0
+    assert "FIXME still wanted" in capsys.readouterr().out

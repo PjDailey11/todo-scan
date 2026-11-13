@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from todo_scan.directory_walker import filter_files_by_suffix, iter_source_files
+from todo_scan.gitignore_rules import load_gitignore_rules
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS
 from todo_scan.scanner import scan_source_file
 from todo_scan.tagged_comment import TaggedComment
@@ -15,6 +16,7 @@ def scan_project_tree(
     recognized_tags: frozenset[str] | None = None,
     excluded_directory_names: frozenset[str] | None = None,
     included_suffixes: frozenset[str] | None = None,
+    respect_gitignore: bool = True,
 ) -> list[TaggedComment]:
     """Scan ``project_root`` and return every tagged comment in walk order.
 
@@ -27,6 +29,10 @@ def scan_project_tree(
         included_suffixes: Optional suffix allow-list applied after the walk.
             When omitted, every file is passed to the scanner, which itself
             skips suffixes it does not recognize.
+        respect_gitignore: When ``True`` (the default, matching the CLI), the
+            ``.gitignore`` at the top of ``project_root`` is applied during
+            the walk. Only the root file is read; nested ignore files are a
+            documented limitation.
 
     Returns:
         A list of matches, grouped by the walker's sorted file order and then
@@ -40,9 +46,18 @@ def scan_project_tree(
     """
 
     tags_to_find = recognized_tags if recognized_tags is not None else DEFAULT_RECOGNIZED_TAGS
+    # A single-file argument has no tree to filter, and the walker ignores
+    # rules for it anyway; skipping the read avoids touching an unrelated
+    # .gitignore in the file's parent directory.
+    gitignore_rules = (
+        load_gitignore_rules(project_root)
+        if respect_gitignore and project_root.is_dir()
+        else None
+    )
     discovered_files = iter_source_files(
         project_root,
         excluded_directory_names=excluded_directory_names,
+        gitignore_rules=gitignore_rules,
     )
     files_to_scan = filter_files_by_suffix(discovered_files, included_suffixes)
 
