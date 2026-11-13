@@ -2,6 +2,7 @@
 
 ```
 todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
+          [--no-gitignore]
           [--format {text,json,markdown}] [--stats] [--check]
           [--output FILE]
           [--version]
@@ -13,6 +14,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--tag TAG` | `TODO,FIXME,HACK,XXX,NOTE` | Only report these tags. Case-insensitive, repeatable, comma lists allowed. |
 | `--suffix SUFFIX` | every recognized file | Only scan files with these suffixes. Repeatable, comma lists allowed, leading dot optional. |
 | `--exclude-dir NAME` | built-in list | Skip directories with this exact name **in addition to** the built-in list. Repeatable. |
+| `--no-gitignore` | off (gitignore honored) | Do not apply the project's top-level `.gitignore`. |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Print a per-tag count summary to standard error after the report. |
 | `--check` | off | Exit with status 1 when any matching tag is found. See [ci.md](ci.md). |
@@ -56,6 +58,22 @@ not glob patterns or paths. A trailing slash from shell tab completion
 `.git`, `.hg`, `.svn`, `.idea`, `.vscode`, `.venv`, `venv`, `env`,
 `node_modules`, `__pycache__`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`,
 `.tox`, `.eggs`, `dist`, `build`, `htmlcov`, `target`, `vendor`.
+
+## `--no-gitignore`
+
+By default the `.gitignore` at the top of `PROJECT_PATH` is applied while
+walking, so generated code, local scratch files, and anything else the project
+already ignores stay out of the report:
+
+```bash
+todo-scan                 # skips paths matched by ./.gitignore
+todo-scan --no-gitignore  # audit everything, including ignored files
+```
+
+`--no-gitignore` only turns off the `.gitignore` rules; the built-in directory
+list above still applies. When `PROJECT_PATH` is a single file it is always
+scanned, even if `.gitignore` matches it. Supported pattern syntax and known
+gaps are described in [how-it-works.md](how-it-works.md#gitignore-support).
 
 ## `--format` and `--output`
 

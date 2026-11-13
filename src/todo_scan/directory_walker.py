@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from todo_scan.gitignore_rules import GitignoreRule, is_path_ignored
+
 # These names are the usual package-manager, VCS, and tool-cache directories
 # that dwarf a project's own source. Walking them is slow and almost never
 # surfaces a reminder the author can act on. `.github` is deliberately not in the
@@ -44,6 +46,7 @@ DEFAULT_EXCLUDED_DIRECTORY_NAMES: frozenset[str] = frozenset(
 def iter_source_files(
     project_root: Path,
     excluded_directory_names: frozenset[str] | None = None,
+    gitignore_rules: list[GitignoreRule] | None = None,
 ) -> list[Path]:
     """Return the source files under ``project_root``, in sorted path order.
 
@@ -54,6 +57,11 @@ def iter_source_files(
         excluded_directory_names: Directory basenames that should not be
             descended into. When omitted, ``DEFAULT_EXCLUDED_DIRECTORY_NAMES``
             is used.
+        gitignore_rules: Optional parsed ``.gitignore`` rules (see
+            ``gitignore_rules.load_gitignore_rules``). Paths are matched
+            relative to ``project_root``. ``None`` or an empty list disables
+            gitignore filtering, which keeps the walker usable without a
+            repository and keeps the old behavior for library callers.
 
     Returns:
         A sorted list of file paths. Sorting keeps later reports and tests
@@ -63,8 +71,11 @@ def iter_source_files(
         Directories whose basename is in the exclude set are not descended
         into, even if they appear in the middle of the tree. Symlinks are not
         followed. Unreadable directories are skipped, so a single permission
-        error cannot abort the walk. If ``project_root`` is a file, the exclude
-        list is ignored and that file is returned alone.
+        error cannot abort the walk. An ignored directory is pruned, so
+        nothing beneath it is visited even if a later ``!`` rule names a file
+        inside it (git has the same limitation). If ``project_root`` is a file,
+        the exclude list and gitignore rules are ignored and that file is
+        returned alone: naming a file explicitly is a request to scan it.
     """
 
     names_to_skip = (
@@ -94,14 +105,34 @@ def iter_source_files(
                 if child_entry.is_dir():
                     if child_entry.name in names_to_skip:
                         continue
+                    if _ignored_by_gitignore(child_entry, resolved_root, True, gitignore_rules):
+                        continue
                     directories_to_visit.append(child_entry)
                 elif child_entry.is_file():
+                    if _ignored_by_gitignore(child_entry, resolved_root, False, gitignore_rules):
+                        continue
                     discovered_files.append(child_entry)
             except OSError:
                 continue
 
     discovered_files.sort()
     return discovered_files
+
+
+def _ignored_by_gitignore(
+    child_entry: Path,
+    walk_root: Path,
+    is_directory: bool,
+    gitignore_rules: list[GitignoreRule] | None,
+) -> bool:
+    """Return whether ``child_entry`` is ignored, using a root-relative POSIX path."""
+
+    if not gitignore_rules:
+        return False
+    # as_posix() matters on Windows: anchored patterns are written with "/",
+    # and a backslash-separated relative path would never match them.
+    relative_path = child_entry.relative_to(walk_root).as_posix()
+    return is_path_ignored(relative_path, is_directory, gitignore_rules)
 
 
 def filter_files_by_suffix(

@@ -25,6 +25,8 @@ exit status for CI.
   file suffix; `https://` is not mistaken for a `//` comment.
 - Skips `.git`, `node_modules`, virtualenvs, caches, and build output; never
   follows symlinks; skips binary, oversized (>1 MiB), and non-UTF-8 files.
+- Honors the project's top-level `.gitignore` (names, `*.ext`, `dir/`,
+  anchored `/path`, and `!` negation); opt out with `--no-gitignore`.
 - Filters by tag (`--tag`), file suffix (`--suffix`), and extra directory
   names (`--exclude-dir`).
 - Text, JSON, and Markdown reports, optionally written to a file.
@@ -74,6 +76,9 @@ todo-scan --suffix py,js
 
 # Skip extra directories on top of the built-in list (.git, node_modules, ...)
 todo-scan --exclude-dir fixtures --exclude-dir generated
+
+# Include files that the project's .gitignore would normally hide
+todo-scan --no-gitignore
 
 # Print a per-tag count summary (to stderr) after the report
 todo-scan --stats
@@ -142,6 +147,7 @@ $ todo-scan --format markdown --suffix py
 | `--tag TAG` | `TODO,FIXME,HACK,XXX,NOTE` | Tags to report; repeatable, comma lists allowed. |
 | `--suffix SUFFIX` | every recognized file | Only scan these suffixes; leading dot optional. |
 | `--exclude-dir NAME` | built-in list | Extra directory basenames to skip, added to the defaults. |
+| `--no-gitignore` | off | Do not apply the top-level `.gitignore` while walking. |
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Per-tag counts on standard error after the report. |
 | `--check` | off | Exit 1 when any matching tag is found. |
@@ -161,6 +167,7 @@ todo-scan/
 │   ├── cli.py               argument parsing, flag normalization, exit codes
 │   ├── project_scan.py      library entry point: walk + filter + scan
 │   ├── directory_walker.py  sorted tree walk, skip list, suffix filter
+│   ├── gitignore_rules.py   simplified .gitignore parser and matcher
 │   ├── scanner.py           per-file checks and comment/tag detection
 │   ├── comment_styles.py    comment delimiters per file suffix
 │   ├── tag_pattern.py       compiled regex for the tag allow-list
@@ -173,8 +180,8 @@ todo-scan/
 
 ## How it works
 
-The scan is a short pipeline: walk the tree (skipping tool directories and
-symlinks), optionally filter by suffix, scan each file's comments with one
+The scan is a short pipeline: walk the tree (skipping tool directories,
+gitignored paths, and symlinks), optionally filter by suffix, scan each file's comments with one
 compiled tag regex, and format the resulting `TaggedComment` records. Each
 stage is a plain function in its own module so it can be tested alone. The
 full walkthrough is in [docs/how-it-works.md](docs/how-it-works.md).
@@ -196,7 +203,13 @@ A few deliberate rules keep the noise down:
 - Well-known tool directories such as `.git`, `node_modules`, and `.venv` are
   not walked. The walker does not follow symlinks, so a scan cannot escape the
   tree you passed in.
-- `.gitignore` is not honored yet; that is a planned improvement.
+- The `.gitignore` at the project root is honored by default. A practical
+  subset is supported: plain names and globs (`*.log`), directory-only rules
+  (`generated/`), root-anchored rules (`/local.cfg`, `docs/drafts`), comments,
+  and `!` negation. Nested `.gitignore` files, `.git/info/exclude`, global
+  excludes, and git's special `**` rules are not modeled. Use
+  `--no-gitignore` to scan ignored files anyway; a file passed directly on the
+  command line is always scanned.
 
 ## Testing
 
@@ -212,7 +225,7 @@ output instead of spawning a subprocess.
 
 ## Roadmap
 
-- Honor `.gitignore` rules while walking the tree.
+- Read nested `.gitignore` files and `.git/info/exclude`.
 - A `--sort` option (by file, by tag, or by count).
 - Optional `git blame` author/date per match.
 - More comment dialects (for example Haskell `{- -}` and Erlang `%`).

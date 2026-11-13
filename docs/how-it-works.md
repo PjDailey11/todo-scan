@@ -7,7 +7,8 @@ module so it can be tested alone and replaced without touching the others.
 project path
    │
    ▼
-directory_walker.iter_source_files      sorted list of files, tool dirs skipped
+directory_walker.iter_source_files      sorted list of files, tool dirs and
+   │                                    gitignored paths skipped
    │
    ▼
 directory_walker.filter_files_by_suffix optional suffix allow-list
@@ -37,8 +38,34 @@ the skip rules are easy to read in one place:
 - The result is **sorted**, so reports are stable across filesystems that
   return directory entries in different orders.
 
-If the path is a single file, it is returned on its own and the exclude list
-does not apply.
+If the path is a single file, it is returned on its own and neither the
+exclude list nor `.gitignore` applies.
+
+### .gitignore support
+
+`gitignore_rules.load_gitignore_rules` reads the `.gitignore` at the project
+root and `parse_gitignore_lines` turns each line into a `GitignoreRule`. The
+walker asks `is_path_ignored` about every directory and file, using a
+root-relative path with `/` separators. Supported syntax:
+
+| Pattern | Meaning |
+| --- | --- |
+| `# comment`, blank line | ignored |
+| `*.log`, `secrets.txt` | basename match at any depth (`fnmatch` wildcards) |
+| `generated/` | directories only; files named `generated` are kept |
+| `/local.cfg`, `docs/drafts` | anchored to the project root (any slash except a trailing one) |
+| `!keep.log` | re-include; the **last** matching rule wins |
+| `\#file`, `\!file` | literal leading `#` or `!` |
+
+An ignored directory is pruned, so a later `!` rule cannot re-include a file
+inside it; git behaves the same way. Matching is case-sensitive.
+
+Not supported (by design, to keep the module small): nested `.gitignore`
+files in subdirectories, `.git/info/exclude` and the global excludes file,
+git's `**` semantics (anchored `*` may cross `/`, which is slightly looser
+than git), and escaped trailing spaces. A missing, unreadable, or non-UTF-8
+`.gitignore` is treated as empty rather than failing the scan. Pass
+`--no-gitignore` to skip this stage entirely.
 
 ## 2. Filtering by suffix
 

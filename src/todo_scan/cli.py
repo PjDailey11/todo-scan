@@ -87,6 +87,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--no-gitignore",
+        action="store_false",
+        dest="respect_gitignore",
+        help=(
+            "Do not apply the project's top-level .gitignore while walking. "
+            "The built-in directory skip list still applies."
+        ),
+    )
+    parser.add_argument(
         "--stats",
         action="store_true",
         help=(
@@ -298,6 +307,7 @@ def main(argv: list[str] | None = None) -> int:
         recognized_tags=recognized_tags,
         excluded_directory_names=excluded_directory_names,
         included_suffixes=included_suffixes,
+        respect_gitignore=arguments.respect_gitignore,
     )
     report_text = render_report(
         tagged_comments,
