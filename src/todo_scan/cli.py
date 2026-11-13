@@ -123,6 +123,15 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help=(
+            "Do not print the report to standard output. --output and --stats "
+            "still work, so this only silences the terminal report."
+        ),
+    )
+    parser.add_argument(
         "--output",
         dest="output_path",
         metavar="FILE",
@@ -336,7 +345,9 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             print(f"todo-scan: could not write {arguments.output_path}: {exc}", file=sys.stderr)
             return 1
-    elif report_text:
+    elif report_text and not arguments.quiet:
+        # --quiet deliberately does not affect --output: a CI step that wants
+        # a silent log can still archive the full report as an artifact.
         sys.stdout.write(report_text)
 
     if arguments.stats:
