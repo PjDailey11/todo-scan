@@ -19,6 +19,7 @@ files, global excludes, and git's special ``**`` semantics are not modeled.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 GITIGNORE_FILE_NAME = ".gitignore"
@@ -123,3 +124,48 @@ def load_gitignore_rules(project_root: Path) -> list[GitignoreRule]:
     except (OSError, UnicodeDecodeError):
         return []
     return parse_gitignore_lines(gitignore_text.splitlines())
+
+
+def is_path_ignored(
+    relative_path: str,
+    is_directory: bool,
+    gitignore_rules: list[GitignoreRule],
+) -> bool:
+    """Decide whether one walked path is ignored by ``gitignore_rules``.
+
+    Parameters:
+        relative_path: Path relative to the project root using ``/``
+            separators (for example ``"src/generated/api.py"``). Callers pass
+            POSIX-style paths so Windows backslashes cannot break anchored
+            patterns.
+        is_directory: Whether the path is a directory; directory-only rules
+            (``build/``) are skipped for regular files.
+        gitignore_rules: Rules in file order from ``parse_gitignore_lines``.
+
+    Returns:
+        ``True`` when the last matching rule ignores the path, ``False`` when
+        no rule matches or the last match is a ``!`` negation.
+
+    Behavior:
+        Matching is case-sensitive, like git on Linux and macOS defaults for
+        repositories. Unanchored rules compare against the basename only, so
+        ``*.log`` matches ``logs/today.log``. Anchored rules compare against the
+        full relative path with ``fnmatchcase``, whose ``*`` can also cross a
+        ``/``; that is looser than git but only matters for unusual patterns.
+        This function checks one path; the walker is responsible for not
+        descending into an ignored directory, which is also why a negation
+        cannot re-include a file inside an ignored directory (git behaves the
+        same way).
+    """
+
+    basename = relative_path.rsplit("/", 1)[-1]
+    ignored = False
+    for rule in gitignore_rules:
+        if rule.directory_only and not is_directory:
+            continue
+        candidate = relative_path if rule.anchored else basename
+        if fnmatchcase(candidate, rule.pattern):
+            # Keep scanning: a later rule (often a negation) overrides an
+            # earlier one, so the final match wins.
+            ignored = not rule.negated
+    return ignored
