@@ -71,3 +71,40 @@ def test_scan_source_file_skips_binary_and_undecodable_files(tmp_path: Path) -> 
     assert scan_source_file(binary_as_source) == []
     assert scan_source_file(undecodable) == []
     assert scan_source_file(binary_file) == []
+
+
+def test_scan_source_file_reads_haskell_line_and_block_comments(tmp_path: Path) -> None:
+    """Haskell tags may sit in ``--`` lines or anywhere inside ``{- -}`` blocks."""
+
+    source_file = tmp_path / "Main.hs"
+    source_file.write_text(
+        "{-# LANGUAGE OverloadedStrings #-}\n"
+        "module Main where\n"
+        "{- TODO: split parsing into its own module -}\n"
+        "{-\n"
+        "  FIXME the cache is never invalidated\n"
+        "-}\n"
+        "main = pure () -- NOTE placeholder entry point\n",
+        encoding="utf-8",
+    )
+
+    matches = scan_source_file(source_file)
+    tags_and_lines = [(match.tag, match.line_number, match.message) for match in matches]
+    assert tags_and_lines == [
+        ("TODO", 3, "split parsing into its own module"),
+        ("FIXME", 5, "the cache is never invalidated"),
+        ("NOTE", 7, "placeholder entry point"),
+    ]
+    assert all(match.comment_style == "haskell" for match in matches)
+
+
+def test_scan_source_file_ignores_haskell_code_after_a_closed_block(tmp_path: Path) -> None:
+    """Text after ``-}`` is code again, so a bare tag word there is not reported."""
+
+    source_file = tmp_path / "Lib.hs"
+    source_file.write_text(
+        "{- helpers -} todoList = [\"TODO\"]\n",
+        encoding="utf-8",
+    )
+
+    assert scan_source_file(source_file) == []
