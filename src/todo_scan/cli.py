@@ -19,6 +19,37 @@ from todo_scan.report import (
 )
 
 
+def parse_non_negative_count(raw_value: str) -> int:
+    """Convert a ``--max-count`` value into a non-negative integer.
+
+    Parameters:
+        raw_value: The string argparse received on the command line.
+
+    Returns:
+        The parsed integer, which may be ``0`` (equivalent to ``--check``).
+
+    Behavior:
+        This is used as an argparse ``type=`` callable, so failures are raised
+        as ``argparse.ArgumentTypeError``; argparse turns that into a usage
+        message and exit status 2, matching the other bad-flag cases. A
+        negative budget is rejected rather than clamped to zero because
+        ``--max-count -1`` is almost certainly a typo, and silently treating it
+        as "fail on any tag" would hide that.
+
+    Raises:
+        argparse.ArgumentTypeError: If ``raw_value`` is not a base-10 integer
+            or is negative.
+    """
+
+    try:
+        parsed_count = int(raw_value.strip(), 10)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a whole number, got {raw_value!r}") from None
+    if parsed_count < 0:
+        raise argparse.ArgumentTypeError(f"must be zero or greater, got {parsed_count}")
+    return parsed_count
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     """Construct the public CLI parser without parsing ``sys.argv``.
 
