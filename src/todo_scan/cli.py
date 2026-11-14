@@ -154,6 +154,16 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--max-count",
+        type=parse_non_negative_count,
+        default=None,
+        metavar="N",
+        help=(
+            "Exit with status 1 only when more than N tags are found. Lets an "
+            "existing project gate on a baseline; --check is the same as N=0."
+        ),
+    )
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -327,7 +337,8 @@ def main(argv: list[str] | None = None) -> int:
         ``0`` after a successful scan, even when tags are found, because by
         default this tool is a reporter, not a linter. With ``--check``, a
         scan that found at least one tag returns ``1`` so CI users can opt
-        into failing the build. ``1`` is also returned when ``--output``
+        into failing the build, and with ``--max-count N`` the run fails
+        only when more than ``N`` tags were found. ``1`` is also returned when ``--output``
         cannot be written, and ``2`` for usage errors.
 
     Behavior:
@@ -390,6 +401,12 @@ def main(argv: list[str] | None = None) -> int:
     # Status 1 is reserved for "findings" (and output write failures); usage
     # errors stay at 2 above, so a CI step can tell a bad invocation apart
     # from a project that still has FIXMEs in it.
-    if arguments.check and tagged_comments:
+    # --max-count is a budget and --check is the zero-budget special case.
+    # When both are given the explicit budget wins, because someone who typed
+    # a number meant it; adding --check out of habit should not tighten it.
+    allowed_tag_count = arguments.max_count
+    if allowed_tag_count is None and arguments.check:
+        allowed_tag_count = 0
+    if allowed_tag_count is not None and len(tagged_comments) > allowed_tag_count:
         return 1
     return 0
