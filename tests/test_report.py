@@ -1,10 +1,14 @@
 """Tests for the text, JSON, and Markdown report formatters."""
 
+import csv
+import io
 import json
 from pathlib import Path
 
 from todo_scan.report import (
+    CSV_REPORT_COLUMNS,
     count_comments_by_tag,
+    format_csv_report,
     format_json_report,
     format_markdown_report,
     format_tag_summary,
@@ -100,3 +104,48 @@ def test_format_tag_summary_reports_zero_for_an_empty_scan() -> None:
     """An empty scan still prints a total so it is distinguishable from a crash."""
 
     assert format_tag_summary([]) == "total  0\n"
+
+
+def test_format_csv_report_writes_a_header_and_one_row_per_match(tmp_path: Path) -> None:
+    """Rows keep input order and use the same relative paths as the text report."""
+
+    report = format_csv_report(_sample_comments(tmp_path), project_root=tmp_path)
+
+    assert report == (
+        "path,line,tag,message,comment_style\r\n"
+        "src/app.py,4,TODO,tighten this later,hash\r\n"
+        "src/app.py,9,FIXME,,hash\r\n"
+    )
+
+
+def test_format_csv_report_keeps_the_header_for_an_empty_scan() -> None:
+    """An empty scan is still a valid CSV document with the expected columns."""
+
+    assert format_csv_report([]) == ",".join(CSV_REPORT_COLUMNS) + "\r\n"
+
+
+def test_format_csv_report_quotes_commas_and_quotes_in_messages(tmp_path: Path) -> None:
+    """Messages with delimiters must round-trip through ``csv.DictReader``."""
+
+    tricky_message = 'handle "a, b" input'
+    tricky_comment = TaggedComment(
+        source_path=tmp_path / "parse.py",
+        line_number=2,
+        tag="TODO",
+        message=tricky_message,
+        comment_style="hash",
+    )
+
+    report = format_csv_report([tricky_comment], project_root=tmp_path)
+    parsed_rows = list(csv.DictReader(io.StringIO(report, newline="")))
+
+    assert '"handle ""a, b"" input"' in report
+    assert parsed_rows == [
+        {
+            "path": "parse.py",
+            "line": "2",
+            "tag": "TODO",
+            "message": tricky_message,
+            "comment_style": "hash",
+        }
+    ]
