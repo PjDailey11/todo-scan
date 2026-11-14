@@ -190,8 +190,10 @@ todo-scan/
 │   ├── tagged_comment.py    the TaggedComment record
 │   ├── result_ordering.py   --sort orders (file, tag, count)
 │   └── report.py            text/JSON/Markdown formatters and tag summary
-├── tests/                   pytest suite, one module per source module
-└── docs/                    design and usage guides
+├── tests/                   pytest suite, one module per source module,
+│                            plus a version-consistency check
+├── docs/                    design and usage guides
+└── CHANGELOG.md             release notes per version
 ```
 
 ## How it works
@@ -241,7 +243,11 @@ pytest
 The suite uses pytest's `tmp_path` fixture to build small throwaway project
 trees, so tests never depend on files outside the repository. CLI tests call
 `todo_scan.cli.main(argv)` directly and check its return value and captured
-output instead of spawning a subprocess.
+output instead of spawning a subprocess. `tests/test_version.py` fails if
+`__version__`, `pyproject.toml`, the CHANGELOG, and `--version` disagree, so
+a half-finished release bump is caught before it is pushed.
+
+There is no hosted CI workflow yet; run `pytest` locally before pushing.
 
 ## Roadmap
 
@@ -250,12 +256,18 @@ output instead of spawning a subprocess.
 - More comment dialects (for example Lua `--[[ ]]` blocks, OCaml `(* *)`, and
   nested Haskell blocks).
 
+## Changelog
+
+The current release is **0.2.0**. Every release and the flags it added are
+listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## Contributing
 
 Issues and pull requests are welcome. Please keep changes small and focused:
 one behavior per pull request, with a test for it and an update to the README
 or the matching guide in [docs/](docs/README.md). Run `pytest` before opening a
-pull request. Public functions need a docstring that covers parameters, return
+pull request, and add a line under **Unreleased** in the CHANGELOG for any
+user-visible change. Public functions need a docstring that covers parameters, return
 value, and edge cases.
 
 ## License
