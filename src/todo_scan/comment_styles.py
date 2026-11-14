@@ -91,6 +91,16 @@ HASKELL_COMMENT_STYLE = CommentStyle(
     block_end="-}",
 )
 
+# Erlang (and its escript files) only has `%` line comments; the community
+# convention of `%%` / `%%%` for section headers still works because the tag
+# search runs on everything after the first `%`. A `%` inside a format string
+# such as "~p%" can start a false comment; that is the same string-literal
+# trade-off every other style here accepts.
+PERCENT_COMMENT_STYLE = CommentStyle(
+    style_name="percent",
+    line_prefix="%",
+)
+
 
 # Suffixes are compared in lowercase with the leading dot included so that
 # ".h" and "h" cannot be confused. Files with no suffix, or a suffix we have
@@ -143,6 +153,9 @@ _SUFFIX_TO_COMMENT_STYLE: dict[str, CommentStyle] = {
     ".sql": DASH_DASH_COMMENT_STYLE,
     ".lua": DASH_DASH_COMMENT_STYLE,
     ".hs": HASKELL_COMMENT_STYLE,
+    ".erl": PERCENT_COMMENT_STYLE,
+    ".hrl": PERCENT_COMMENT_STYLE,
+    ".escript": PERCENT_COMMENT_STYLE,
     ".lisp": SEMICOLON_COMMENT_STYLE,
     ".el": SEMICOLON_COMMENT_STYLE,
     ".clj": SEMICOLON_COMMENT_STYLE,
