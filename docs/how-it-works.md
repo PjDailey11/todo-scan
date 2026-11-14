@@ -86,10 +86,26 @@ them:
 - a NUL byte in the first 8 KiB (images, compiled objects),
 - not valid UTF-8.
 
-The comment style is picked from the file suffix (`#`, `//` and `/* */`,
-`<!-- -->`, `--`, `;`). Only text inside a comment is searched for tags. The
-`//` detector ignores `://` so URLs such as `https://example.com/TODO` are not
-reported.
+The comment style is picked from the file suffix. Only text inside a comment
+is searched for tags. The `//` detector ignores `://` so URLs such as
+`https://example.com/TODO` are not reported.
+
+| Style | Line comment | Block comment | Suffixes (examples) |
+| --- | --- | --- | --- |
+| `hash` | `#` | | `.py`, `.rb`, `.sh`, `.yml`, `.toml`, `.r` |
+| `c-style` | `//` | `/* */` | `.c`, `.java`, `.js`, `.ts`, `.go`, `.rs`, `.css` |
+| `slash-slash` | `//` | | `.jsonc` |
+| `html` | | `<!-- -->` | `.html`, `.xml`, `.svg`, `.md` |
+| `dash-dash` | `--` | | `.sql`, `.lua` |
+| `haskell` | `--` | `{- -}` | `.hs` |
+| `percent` | `%` | | `.erl`, `.hrl`, `.escript` |
+| `semicolon` | `;` | | `.lisp`, `.el`, `.clj`, `.scm` |
+
+Block comments do not nest: the first closer ends the block. That matches C,
+but is a simplification for Haskell, whose `{- -}` blocks can nest; a tag after
+an inner `-}` but before the outer one is read as code and missed. Haskell
+pragmas (`{-# ... #-}`) are treated as ordinary blocks. The style name is
+stored on every match as `comment_style` in the JSON report.
 
 ## 4. Matching tags
 
