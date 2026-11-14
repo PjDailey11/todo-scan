@@ -19,6 +19,37 @@ from todo_scan.report import (
 )
 
 
+def parse_non_negative_count(raw_value: str) -> int:
+    """Convert a ``--max-count`` value into a non-negative integer.
+
+    Parameters:
+        raw_value: The string argparse received on the command line.
+
+    Returns:
+        The parsed integer, which may be ``0`` (equivalent to ``--check``).
+
+    Behavior:
+        This is used as an argparse ``type=`` callable, so failures are raised
+        as ``argparse.ArgumentTypeError``; argparse turns that into a usage
+        message and exit status 2, matching the other bad-flag cases. A
+        negative budget is rejected rather than clamped to zero because
+        ``--max-count -1`` is almost certainly a typo, and silently treating it
+        as "fail on any tag" would hide that.
+
+    Raises:
+        argparse.ArgumentTypeError: If ``raw_value`` is not a base-10 integer
+            or is negative.
+    """
+
+    try:
+        parsed_count = int(raw_value.strip(), 10)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a whole number, got {raw_value!r}") from None
+    if parsed_count < 0:
+        raise argparse.ArgumentTypeError(f"must be zero or greater, got {parsed_count}")
+    return parsed_count
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     """Construct the public CLI parser without parsing ``sys.argv``.
 
@@ -120,6 +151,25 @@ def build_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Exit with status 1 when any tagged comment is found (for CI). "
             "The report is still printed so the log shows what failed."
+        ),
+    )
+    parser.add_argument(
+        "--max-count",
+        type=parse_non_negative_count,
+        default=None,
+        metavar="N",
+        help=(
+            "Exit with status 1 only when more than N tags are found. Lets an "
+            "existing project gate on a baseline; --check is the same as N=0."
+        ),
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help=(
+            "Do not print the report to standard output. --output and --stats "
+            "still work, so this only silences the terminal report."
         ),
     )
     parser.add_argument(
@@ -287,7 +337,8 @@ def main(argv: list[str] | None = None) -> int:
         ``0`` after a successful scan, even when tags are found, because by
         default this tool is a reporter, not a linter. With ``--check``, a
         scan that found at least one tag returns ``1`` so CI users can opt
-        into failing the build. ``1`` is also returned when ``--output``
+        into failing the build, and with ``--max-count N`` the run fails
+        only when more than ``N`` tags were found. ``1`` is also returned when ``--output``
         cannot be written, and ``2`` for usage errors.
 
     Behavior:
@@ -336,7 +387,9 @@ def main(argv: list[str] | None = None) -> int:
         except OSError as exc:
             print(f"todo-scan: could not write {arguments.output_path}: {exc}", file=sys.stderr)
             return 1
-    elif report_text:
+    elif report_text and not arguments.quiet:
+        # --quiet deliberately does not affect --output: a CI step that wants
+        # a silent log can still archive the full report as an artifact.
         sys.stdout.write(report_text)
 
     if arguments.stats:
@@ -348,6 +401,12 @@ def main(argv: list[str] | None = None) -> int:
     # Status 1 is reserved for "findings" (and output write failures); usage
     # errors stay at 2 above, so a CI step can tell a bad invocation apart
     # from a project that still has FIXMEs in it.
-    if arguments.check and tagged_comments:
+    # --max-count is a budget and --check is the zero-budget special case.
+    # When both are given the explicit budget wins, because someone who typed
+    # a number meant it; adding --check out of habit should not tighten it.
+    allowed_tag_count = arguments.max_count
+    if allowed_tag_count is None and arguments.check:
+        allowed_tag_count = 0
+    if allowed_tag_count is not None and len(tagged_comments) > allowed_tag_count:
         return 1
     return 0

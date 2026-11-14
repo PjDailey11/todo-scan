@@ -32,7 +32,9 @@ exit status for CI.
 - Text, JSON, and Markdown reports, optionally written to a file.
 - `--sort file|tag|count` to read results by location, grouped by tag, or
   busiest files first.
-- `--stats` per-tag summary and a `--check` mode that fails CI when tags are found.
+- `--stats` per-tag summary, a `--check` mode that fails CI when tags are found,
+  a `--max-count N` budget for projects with an existing baseline, and
+  `--quiet` for silent exit-status-only gates.
 - No runtime dependencies; Python 3.9+.
 
 ## Install
@@ -91,6 +93,9 @@ todo-scan --stats
 
 # Fail with exit status 1 if any FIXME is left (for CI)
 todo-scan --check --tag FIXME
+
+# Fail only if the project grows past 37 tags, without printing the report
+todo-scan --max-count 37 --quiet
 
 # Write a machine-readable or Markdown report
 todo-scan --format json --output todos.json
@@ -158,12 +163,15 @@ $ todo-scan --format markdown --suffix py
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Per-tag counts on standard error after the report. |
 | `--check` | off | Exit 1 when any matching tag is found. |
+| `--max-count N` | off | Exit 1 only when more than `N` tags are found (overrides `--check`). |
+| `-q`, `--quiet` | off | Do not print the report to stdout; `--output` and `--stats` still work. |
 | `--output FILE` | stdout | Write the report to a file. |
 | `--version` | | Print the version. |
 
 Exit status: `0` when the scan ran (and, with `--check`, found nothing), `1`
-when `--check` found tags or `--output` could not be written, `2` for usage
-errors such as a missing path or an empty `--tag` / `--suffix`. Full details
+when `--check` found tags, `--max-count N` found more than `N`, or `--output`
+could not be written, `2` for usage errors such as a missing path, an empty
+`--tag` / `--suffix`, or a negative `--max-count`. Full details
 are in [docs/options.md](docs/options.md) and [docs/ci.md](docs/ci.md).
 
 ## Project structure
