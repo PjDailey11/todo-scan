@@ -60,10 +60,10 @@ C_STYLE_COMMENT_STYLE = CommentStyle(
     block_end="*/",
 )
 
-# HTML/XML and Markdown HTML comments share the same pair. SQL, Lua, and Haskell
-# use `--` as a line comment; we do not attempt Haskell's `{--}` blocks here
-# because they are uncommon in the trees this tool is aimed at. Lisp-family
-# languages use `;`.
+# HTML/XML and Markdown HTML comments share the same pair. SQL and Lua use
+# `--` as a line comment (Lua's `--[[ ]]` blocks are not modeled: their opener
+# starts with the line prefix, so the line rule already catches the first
+# line). Lisp-family languages use `;`.
 HTML_COMMENT_STYLE = CommentStyle(
     style_name="html",
     block_start="<!--",
@@ -76,6 +76,29 @@ DASH_DASH_COMMENT_STYLE = CommentStyle(
 SEMICOLON_COMMENT_STYLE = CommentStyle(
     style_name="semicolon",
     line_prefix=";",
+)
+
+# Haskell pairs `--` line comments with `{- -}` blocks. Real Haskell blocks
+# nest, but the scanner's state machine is a single flag, so the first `-}`
+# closes the block here, the same simplification made for C. Pragmas such as
+# `{-# LANGUAGE ... #-}` are parsed as ordinary blocks; they never contain a
+# tag word, so they cost nothing. When `--` and `{-` both appear, whichever is
+# earlier on the line wins, so `{--` opens a block rather than a line comment.
+HASKELL_COMMENT_STYLE = CommentStyle(
+    style_name="haskell",
+    line_prefix="--",
+    block_start="{-",
+    block_end="-}",
+)
+
+# Erlang (and its escript files) only has `%` line comments; the community
+# convention of `%%` / `%%%` for section headers still works because the tag
+# search runs on everything after the first `%`. A `%` inside a format string
+# such as "~p%" can start a false comment; that is the same string-literal
+# trade-off every other style here accepts.
+PERCENT_COMMENT_STYLE = CommentStyle(
+    style_name="percent",
+    line_prefix="%",
 )
 
 
@@ -129,7 +152,10 @@ _SUFFIX_TO_COMMENT_STYLE: dict[str, CommentStyle] = {
     ".markdown": HTML_COMMENT_STYLE,
     ".sql": DASH_DASH_COMMENT_STYLE,
     ".lua": DASH_DASH_COMMENT_STYLE,
-    ".hs": DASH_DASH_COMMENT_STYLE,
+    ".hs": HASKELL_COMMENT_STYLE,
+    ".erl": PERCENT_COMMENT_STYLE,
+    ".hrl": PERCENT_COMMENT_STYLE,
+    ".escript": PERCENT_COMMENT_STYLE,
     ".lisp": SEMICOLON_COMMENT_STYLE,
     ".el": SEMICOLON_COMMENT_STYLE,
     ".clj": SEMICOLON_COMMENT_STYLE,

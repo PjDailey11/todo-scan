@@ -21,8 +21,8 @@ exit status for CI.
 
 - Finds `TODO`, `FIXME`, `HACK`, `XXX`, and `NOTE` (or any tags you choose)
   case-insensitively as whole words, with an optional colon.
-- Understands `#`, `//`, `/* */`, `<!-- -->`, `--`, and `;` comments, chosen by
-  file suffix; `https://` is not mistaken for a `//` comment.
+- Understands `#`, `//`, `/* */`, `<!-- -->`, `--`, Haskell `{- -}`, Erlang `%`,
+  and `;` comments, chosen by file suffix; `https://` is not mistaken for a `//` comment.
 - Skips `.git`, `node_modules`, virtualenvs, caches, and build output; never
   follows symlinks; skips binary, oversized (>1 MiB), and non-UTF-8 files.
 - Honors the project's top-level `.gitignore` (names, `*.ext`, `dir/`,
@@ -206,9 +206,13 @@ full walkthrough is in [docs/how-it-works.md](docs/how-it-works.md).
 
 The scanner is a heuristic. It looks for tags inside comment delimiters chosen
 from the file suffix (`#` for Python and shell, `//` and `/* */` for C-like
-languages, `<!-- -->` for HTML, `--` for SQL and Lua, `;` for Lisp-family
-files). It is not a full language parser, so a tag inside a string can still
+languages, `<!-- -->` for HTML, `--` for SQL and Lua, `--` and `{- -}` for
+Haskell, `%` for Erlang, `;` for Lisp-family files; the full table is in
+[docs/how-it-works.md](docs/how-it-works.md#3-scanning-one-file)). It is not a full language parser, so a tag inside a string can still
 match if a comment delimiter also appears in that string.
+
+Block comments do not nest, so a nested Haskell `{- {- -} -}` block ends at
+the first `-}`.
 
 A few deliberate rules keep the noise down:
 
@@ -243,7 +247,8 @@ output instead of spawning a subprocess.
 
 - Read nested `.gitignore` files and `.git/info/exclude`.
 - Optional `git blame` author/date per match.
-- More comment dialects (for example Haskell `{- -}` and Erlang `%`).
+- More comment dialects (for example Lua `--[[ ]]` blocks, OCaml `(* *)`, and
+  nested Haskell blocks).
 
 ## Contributing
 
