@@ -6,7 +6,11 @@ All notable changes to todo-scan are recorded here. The format follows
 new flags bump the minor version and fixes bump the patch version; existing
 flags and exit statuses are not changed without a note under **Changed**.
 
-## [Unreleased]
+## Unreleased
+
+Nothing yet.
+
+## 0.2.0 - 2026-11-13
 
 ### Added
 
@@ -31,7 +35,7 @@ flags and exit statuses are not changed without a note under **Changed**.
 - `.hs` files now use the `haskell` comment style instead of `dash-dash`, so
   the `comment_style` field in JSON reports for Haskell matches changes value.
 
-## [0.1.0] - 2026-11-10
+## 0.1.0 - 2026-11-10
 
 ### Added
 
@@ -42,6 +46,3 @@ flags and exit statuses are not changed without a note under **Changed**.
   ignores binary, oversized, and non-UTF-8 files.
 - Text, JSON, and Markdown reports, `--tag`, `--format`, `--output`, and
   `--version` flags, and `python -m todo_scan` support.
-
-[Unreleased]: https://github.com/PjDailey11/todo-scan/compare/main...HEAD
-[0.1.0]: https://github.com/PjDailey11/todo-scan/commits/main
