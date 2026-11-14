@@ -101,6 +101,9 @@ is searched for tags. The `//` detector ignores `://` so URLs such as
 | `percent` | `%` | | `.erl`, `.hrl`, `.escript` |
 | `semicolon` | `;` | | `.lisp`, `.el`, `.clj`, `.scm` |
 
+The table above lists examples only. Run `todo-scan --list-styles` for the
+complete, always-current mapping of every suffix to its style and delimiters.
+
 Block comments do not nest: the first closer ends the block. That matches C,
 but is a simplification for Haskell, whose `{- -}` blocks can nest; a tag after
 an inner `-}` but before the outer one is read as code and missed. Haskell

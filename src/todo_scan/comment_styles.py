@@ -190,3 +190,57 @@ def comment_style_for_suffix(file_suffix: str) -> CommentStyle | None:
     if exact_match is not None:
         return exact_match
     return _SUFFIX_TO_COMMENT_STYLE.get(file_suffix.lower())
+
+
+def _describe_delimiters(comment_style: CommentStyle) -> str:
+    """Summarize a style's delimiters as ``line '#'`` / ``block '/*' ... '*/'``."""
+
+    delimiter_parts: list[str] = []
+    if comment_style.line_prefix is not None:
+        delimiter_parts.append(f"line {comment_style.line_prefix!r}")
+    if comment_style.block_start is not None and comment_style.block_end is not None:
+        delimiter_parts.append(
+            f"block {comment_style.block_start!r} ... {comment_style.block_end!r}"
+        )
+    return ", ".join(delimiter_parts)
+
+
+def format_comment_style_listing() -> str:
+    """Render every registered suffix with its comment style, one per line.
+
+    Parameters:
+        None. The listing is built from the same private mapping that
+        ``comment_style_for_suffix`` reads, so it cannot disagree with what
+        the scanner actually does (unlike a hand-maintained docs table).
+
+    Returns:
+        A newline-terminated string with three aligned columns: suffix, style
+        name, and a delimiter summary such as
+        ``.c        c-style      line '//', block '/*' ... '*/'``.
+
+    Behavior:
+        Rows are sorted case-insensitively by suffix, with the exact suffix
+        as a tie-break, so ``.R`` and ``.r`` sit next to each other in a
+        stable order. Delimiters are shown with ``repr`` quoting because some
+        of them (``--``, ``;``) are easy to misread when printed bare. Column
+        widths come from the longest value, so adding a long suffix later
+        does not break alignment.
+    """
+
+    ordered_suffixes = sorted(
+        _SUFFIX_TO_COMMENT_STYLE, key=lambda suffix: (suffix.lower(), suffix)
+    )
+    suffix_width = max(len(suffix) for suffix in ordered_suffixes)
+    style_name_width = max(
+        len(comment_style.style_name)
+        for comment_style in _SUFFIX_TO_COMMENT_STYLE.values()
+    )
+    listing_lines = []
+    for suffix in ordered_suffixes:
+        comment_style = _SUFFIX_TO_COMMENT_STYLE[suffix]
+        listing_lines.append(
+            f"{suffix.ljust(suffix_width)}  "
+            f"{comment_style.style_name.ljust(style_name_width)}  "
+            f"{_describe_delimiters(comment_style)}"
+        )
+    return "\n".join(listing_lines) + "\n"

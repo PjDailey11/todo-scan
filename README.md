@@ -97,6 +97,9 @@ todo-scan --check --tag FIXME
 # Fail only if the project grows past 37 tags, without printing the report
 todo-scan --max-count 37 --quiet
 
+# See which file suffixes are scanned and which comment delimiters each uses
+todo-scan --list-styles
+
 # Write a machine-readable or Markdown report
 todo-scan --format json --output todos.json
 todo-scan --format markdown --output todos.md
@@ -166,6 +169,7 @@ $ todo-scan --format markdown --suffix py
 | `--max-count N` | off | Exit 1 only when more than `N` tags are found (overrides `--check`). |
 | `-q`, `--quiet` | off | Do not print the report to stdout; `--output` and `--stats` still work. |
 | `--output FILE` | stdout | Write the report to a file. |
+| `--list-styles` | off | Print every recognized suffix with its comment style, then exit 0 without scanning. |
 | `--version` | | Print the version. |
 
 Exit status: `0` when the scan ran (and, with `--check`, found nothing), `1`

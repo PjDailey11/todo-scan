@@ -8,7 +8,11 @@ flags and exit statuses are not changed without a note under **Changed**.
 
 ## Unreleased
 
-Nothing yet.
+### Added
+
+- `--list-styles` prints every recognized file suffix with its comment style
+  and delimiters, generated from the scanner's own mapping, and exits 0
+  without scanning (#15).
 
 ## 0.2.0 - 2026-11-13
 

@@ -6,7 +6,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
           [--sort {file,tag,count}]
           [--format {text,json,markdown}] [--stats] [--check]
           [--max-count N] [-q] [--output FILE]
-          [--version]
+          [--list-styles] [--version]
 ```
 
 | Option | Default | Description |
@@ -23,6 +23,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--max-count N` | off | Exit with status 1 only when more than `N` tags are found. Overrides `--check`. See [ci.md](ci.md#allow-a-baseline-with---max-count). |
 | `-q`, `--quiet` | off | Do not print the report to standard output. `--output` and `--stats` still work. |
 | `--output FILE` | standard output | Write the report to a file instead of printing it. |
+| `--list-styles` | off | Print the suffix to comment style table and exit 0 without scanning. See below. |
 | `--version` | | Print the version and exit. |
 
 ## `--tag`
@@ -161,10 +162,40 @@ When both are given, the explicit `--max-count` wins. The count is taken after
 `--tag FIXME --max-count 3` budgets FIXMEs only. A negative or non-integer
 value is a usage error (exit status 2).
 
+## `--list-styles`
+
+```bash
+$ todo-scan --list-styles
+.bash      hash         line '#'
+.c         c-style      line '//', block '/*' ... '*/'
+.cc        c-style      line '//', block '/*' ... '*/'
+...
+.hs        haskell      line '--', block '{-' ... '-}'
+...
+.sql       dash-dash    line '--'
+...
+```
+
+Prints one row per file suffix that todo-scan reads: the suffix, the comment
+style name (the same value stored as `comment_style` in JSON reports), and the
+delimiters that style recognizes. Delimiters are quoted so short markers such
+as `--` and `;` are easy to read. Rows are sorted by suffix, ignoring case, so
+`.R` and `.r` appear next to each other and the output is stable enough to
+diff between versions.
+
+The table is generated from the same mapping the scanner uses, so it is always
+accurate for the installed version, unlike a hand-written docs table. Files
+whose suffix is not listed are skipped entirely; `--suffix` can narrow the list
+but cannot add new suffixes.
+
+The flag is handled before anything else: no scan runs, other filters are
+ignored, and the positional path is not checked, so `todo-scan --list-styles`
+works from any directory and always exits with status 0.
+
 ## Exit status
 
 | Status | Meaning |
 | --- | --- |
-| 0 | The scan ran. Without `--check`, tags may or may not have been found; with `--check`, none were found. |
+| 0 | The scan ran (or `--list-styles` printed the table). Without `--check`, tags may or may not have been found; with `--check`, none were found. |
 | 1 | `--check` was given and tags were found, `--max-count N` was given and more than `N` were found, or the report could not be written to `--output`. |
 | 2 | Usage error: missing path, an empty `--tag` / `--suffix` value, or a bad `--max-count`. |
