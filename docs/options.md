@@ -5,7 +5,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
           [--no-gitignore]
           [--sort {file,tag,count}]
           [--format {text,json,markdown}] [--stats] [--check]
-          [--output FILE]
+          [--max-count N] [-q] [--output FILE]
           [--version]
 ```
 
@@ -20,6 +20,8 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
 | `--stats` | off | Print a per-tag count summary to standard error after the report. |
 | `--check` | off | Exit with status 1 when any matching tag is found. See [ci.md](ci.md). |
+| `--max-count N` | off | Exit with status 1 only when more than `N` tags are found. Overrides `--check`. See [ci.md](ci.md#allow-a-baseline-with---max-count). |
+| `-q`, `--quiet` | off | Do not print the report to standard output. `--output` and `--stats` still work. |
 | `--output FILE` | standard output | Write the report to a file instead of printing it. |
 | `--version` | | Print the version and exit. |
 
@@ -134,10 +136,35 @@ The summary is written to **standard error**, not standard output. That keeps
 showing the counts in the terminal or CI log. Redirect it with `2> stats.txt`
 if you want to keep it.
 
+## `--quiet`
+
+```bash
+todo-scan --check --quiet                 # silent gate: only the exit status
+todo-scan -q --format json --output todos.json --stats
+```
+
+`--quiet` only affects the report on standard output. A report requested with
+`--output FILE` is still written, and the `--stats` summary still goes to
+standard error, so a CI job can keep a quiet log and still upload the report
+as an artifact.
+
+## `--max-count`
+
+```bash
+todo-scan --max-count 25 --quiet   # fail only if the project grows past 25 tags
+```
+
+`N` is a budget: the run exits with status 1 when **more than** `N` matching
+tags are found, and 0 otherwise. `--check` is the same as `--max-count 0`.
+When both are given, the explicit `--max-count` wins. The count is taken after
+`--tag`, `--suffix`, `--exclude-dir`, and `.gitignore` filtering, so
+`--tag FIXME --max-count 3` budgets FIXMEs only. A negative or non-integer
+value is a usage error (exit status 2).
+
 ## Exit status
 
 | Status | Meaning |
 | --- | --- |
 | 0 | The scan ran. Without `--check`, tags may or may not have been found; with `--check`, none were found. |
-| 1 | `--check` was given and tags were found, or the report could not be written to `--output`. |
-| 2 | Usage error: missing path, or an empty `--tag` / `--suffix` value. |
+| 1 | `--check` was given and tags were found, `--max-count N` was given and more than `N` were found, or the report could not be written to `--output`. |
+| 2 | Usage error: missing path, an empty `--tag` / `--suffix` value, or a bad `--max-count`. |

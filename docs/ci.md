@@ -9,8 +9,8 @@ fails the build when tags are present.
 | Status | Meaning |
 | --- | --- |
 | 0 | No matching tags were found. |
-| 1 | At least one matching tag was found (or `--output` could not be written). |
-| 2 | Usage error: missing path, or an empty `--tag` / `--suffix` value. |
+| 1 | At least one matching tag was found, or more than `N` with `--max-count N` (or `--output` could not be written). |
+| 2 | Usage error: missing path, an empty `--tag` / `--suffix` value, or a bad `--max-count`. |
 
 Keeping usage errors at 2 means a typo in the CI command is distinguishable
 from "the project still has FIXMEs".
@@ -26,6 +26,26 @@ todo-scan --check --tag FIXME,XXX
 
 The report is still printed, so the failing job log lists every offending
 line in `path:line: TAG message` form.
+
+## Allow a baseline with `--max-count`
+
+An existing project rarely has zero reminders, so `--check` would fail on day
+one. Record today's count and gate on it instead, so the number can only go
+down:
+
+```bash
+todo-scan --stats --quiet          # prints e.g. "total  37" on stderr
+todo-scan --max-count 37 --quiet   # fails as soon as a 38th tag lands
+```
+
+Lower the budget whenever reminders are cleaned up. `--max-count 0` is exactly
+`--check`.
+
+## Silent gates with `--quiet`
+
+`--quiet` drops the report from standard output while keeping the exit
+status, which suits hooks where only pass/fail matters. Pair it with
+`--output` to keep the full report as a CI artifact without flooding the log.
 
 ## GitHub Actions example
 
@@ -49,5 +69,5 @@ jobs:
 ## Pre-commit style local check
 
 ```bash
-todo-scan src --check --tag FIXME || echo "resolve FIXMEs before committing"
+todo-scan src --check --quiet --tag FIXME || echo "resolve FIXMEs before committing"
 ```
