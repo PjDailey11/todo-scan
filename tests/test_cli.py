@@ -1,5 +1,6 @@
 """Tests for CLI argument handling and the process entry point."""
 
+import argparse
 import json
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from todo_scan.cli import (
     collect_included_suffixes,
     collect_recognized_tags,
     main,
+    parse_non_negative_count,
 )
 from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS
@@ -170,6 +172,43 @@ def test_main_quiet_still_writes_output_file_and_stats(tmp_path: Path, capsys) -
     assert captured.out == ""
     assert captured.err == "TODO   1\ntotal  1\n"
     assert json.loads(report_path.read_text(encoding="utf-8"))[0]["tag"] == "TODO"
+
+
+def test_parse_non_negative_count_accepts_zero_and_rejects_bad_values() -> None:
+    """Zero is a valid budget; negatives and non-numbers are typos."""
+
+    assert parse_non_negative_count("0") == 0
+    assert parse_non_negative_count(" 12 ") == 12
+    for bad_value in ("-1", "three", "1.5", ""):
+        with pytest.raises(argparse.ArgumentTypeError):
+            parse_non_negative_count(bad_value)
+
+
+def test_main_max_count_fails_only_above_the_budget(tmp_path: Path) -> None:
+    """Two tags pass a budget of two and fail a budget of one."""
+
+    (tmp_path / "app.py").write_text("# TODO one\n# FIXME two\n", encoding="utf-8")
+
+    assert main([str(tmp_path), "-q", "--max-count", "2"]) == 0
+    assert main([str(tmp_path), "-q", "--max-count", "1"]) == 1
+
+
+def test_main_max_count_overrides_check(tmp_path: Path) -> None:
+    """An explicit budget wins over the zero budget implied by ``--check``."""
+
+    (tmp_path / "app.py").write_text("# TODO one\n", encoding="utf-8")
+
+    assert main([str(tmp_path), "-q", "--check", "--max-count", "5"]) == 0
+
+
+def test_main_rejects_a_negative_max_count(tmp_path: Path, capsys) -> None:
+    """argparse turns the type error into a usage error with status 2."""
+
+    with pytest.raises(SystemExit) as exit_info:
+        main([str(tmp_path), "--max-count", "-3"])
+
+    assert exit_info.value.code == 2
+    assert "must be zero or greater" in capsys.readouterr().err
 
 
 def test_main_honors_gitignore_by_default_and_no_gitignore_disables_it(
