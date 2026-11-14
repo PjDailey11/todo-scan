@@ -13,6 +13,7 @@ from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
 from todo_scan.result_ordering import DEFAULT_SORT_ORDER, SORT_ORDERS, sort_tagged_comments
 from todo_scan.report import (
+    format_csv_report,
     format_json_report,
     format_markdown_report,
     format_tag_summary,
@@ -102,7 +103,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=("text", "json", "markdown"),
+        choices=("text", "json", "markdown", "csv"),
         default="text",
         dest="output_format",
         help="Report format (default: text).",
@@ -311,7 +312,7 @@ def render_report(
 
     Parameters:
         tagged_comments: Matches from ``scan_project_tree``.
-        output_format: One of ``text``, ``json``, or ``markdown``, already
+        output_format: One of ``text``, ``json``, ``markdown``, or ``csv``, already
             validated by argparse.
         project_root: Path used to relativize file names in the report.
 
@@ -331,6 +332,8 @@ def render_report(
         return format_json_report(tagged_comments, project_root=project_root)
     if output_format == "markdown":
         return format_markdown_report(tagged_comments, project_root=project_root)
+    if output_format == "csv":
+        return format_csv_report(tagged_comments, project_root=project_root)
     raise ValueError(f"unsupported report format: {output_format}")
 
 
@@ -400,7 +403,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     if arguments.output_path:
         try:
-            Path(arguments.output_path).write_text(report_text, encoding="utf-8")
+            # newline="" writes the report's line endings verbatim. The CSV
+            # formatter already emits RFC 4180 "\r\n" rows, and the default
+            # text-mode translation would turn those into "\r\r\n" on
+            # Windows; for the other formats "\n" stays "\n" everywhere,
+            # which is what diff-friendly report files want anyway.
+            with open(arguments.output_path, "w", encoding="utf-8", newline="") as report_file:
+                report_file.write(report_text)
         except OSError as exc:
             print(f"todo-scan: could not write {arguments.output_path}: {exc}", file=sys.stderr)
             return 1
