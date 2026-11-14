@@ -298,3 +298,27 @@ def test_main_rejects_an_unknown_sort_order(tmp_path: Path, capsys) -> None:
         main([str(tmp_path), "--sort", "severity"])
     assert exit_info.value.code == 2
     assert "invalid choice" in capsys.readouterr().err
+
+
+def test_main_list_styles_prints_the_table_and_skips_the_scan(tmp_path: Path, capsys) -> None:
+    """``--list-styles`` is informational: no scan output, status 0."""
+
+    (tmp_path / "app.py").write_text("# TODO: should not be reported\n", encoding="utf-8")
+
+    exit_status = main(["--list-styles", str(tmp_path)])
+    captured = capsys.readouterr()
+
+    assert exit_status == 0
+    assert "TODO" not in captured.out
+    assert any(row.split()[:2] == [".py", "hash"] for row in captured.out.splitlines())
+    assert captured.err == ""
+
+
+def test_main_list_styles_ignores_a_missing_project_path(capsys) -> None:
+    """The listing describes the tool, so a bad path must not turn it into exit 2."""
+
+    exit_status = main(["--list-styles", "definitely/not/a/real/path"])
+    captured = capsys.readouterr()
+
+    assert exit_status == 0
+    assert captured.out.startswith(".bash")
