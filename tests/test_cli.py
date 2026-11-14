@@ -142,6 +142,36 @@ def test_main_check_keeps_usage_errors_at_status_two() -> None:
     assert main(["/this/path/does/not/exist", "--check"]) == 2
 
 
+def test_main_quiet_with_check_prints_nothing_but_still_fails(tmp_path: Path, capsys) -> None:
+    """``--quiet --check`` is a pure exit-status gate for hooks and CI."""
+
+    (tmp_path / "app.py").write_text("# FIXME before release\n", encoding="utf-8")
+
+    exit_status = main([str(tmp_path), "--check", "--quiet"])
+    captured = capsys.readouterr()
+
+    assert exit_status == 1
+    assert captured.out == ""
+    assert captured.err == ""
+
+
+def test_main_quiet_still_writes_output_file_and_stats(tmp_path: Path, capsys) -> None:
+    """``--quiet`` only silences stdout; the artifact and stderr summary remain."""
+
+    (tmp_path / "app.py").write_text("# TODO one\n", encoding="utf-8")
+    report_path = tmp_path / "report.json"
+
+    exit_status = main(
+        [str(tmp_path / "app.py"), "-q", "--stats", "--format", "json", "--output", str(report_path)]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_status == 0
+    assert captured.out == ""
+    assert captured.err == "TODO   1\ntotal  1\n"
+    assert json.loads(report_path.read_text(encoding="utf-8"))[0]["tag"] == "TODO"
+
+
 def test_main_honors_gitignore_by_default_and_no_gitignore_disables_it(
     tmp_path: Path, capsys
 ) -> None:
