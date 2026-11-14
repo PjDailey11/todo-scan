@@ -108,3 +108,33 @@ def test_scan_source_file_ignores_haskell_code_after_a_closed_block(tmp_path: Pa
     )
 
     assert scan_source_file(source_file) == []
+
+
+def test_scan_source_file_reads_erlang_percent_comments(tmp_path: Path) -> None:
+    """Single, double, and trailing ``%`` comments are all Erlang line comments."""
+
+    source_file = tmp_path / "server.erl"
+    source_file.write_text(
+        "%%% FIXME: supervisor restarts too eagerly\n"
+        "-module(server).\n"
+        "start() -> ok. % TODO return the pid\n"
+        "%% plain section header, no tag here\n",
+        encoding="utf-8",
+    )
+
+    matches = scan_source_file(source_file)
+    tags_and_lines = [(match.tag, match.line_number, match.message) for match in matches]
+    assert tags_and_lines == [
+        ("FIXME", 1, "supervisor restarts too eagerly"),
+        ("TODO", 3, "return the pid"),
+    ]
+    assert all(match.comment_style == "percent" for match in matches)
+
+
+def test_scan_source_file_maps_erlang_header_files(tmp_path: Path) -> None:
+    """``.hrl`` headers use the same style, so records' reminders are found."""
+
+    header_file = tmp_path / "records.hrl"
+    header_file.write_text("-record(user, {name}). % NOTE add email later\n", encoding="utf-8")
+
+    assert [match.tag for match in scan_source_file(header_file)] == ["NOTE"]
