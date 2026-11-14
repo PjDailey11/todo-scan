@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from todo_scan import __version__
+from todo_scan.comment_styles import format_comment_style_listing
 from todo_scan.directory_walker import DEFAULT_EXCLUDED_DIRECTORY_NAMES
 from todo_scan.project_scan import scan_project_tree
 from todo_scan.recognized_tags import DEFAULT_RECOGNIZED_TAGS, normalize_tag
@@ -80,6 +81,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
+    )
+    parser.add_argument(
+        "--list-styles",
+        action="store_true",
+        help=(
+            "Print every recognized file suffix with its comment style and "
+            "delimiters, then exit without scanning."
+        ),
     )
     parser.add_argument(
         "--tag",
@@ -342,13 +351,21 @@ def main(argv: list[str] | None = None) -> int:
         cannot be written, and ``2`` for usage errors.
 
     Behavior:
-        Writes the text report to standard output. A missing project path is
+        Writes the text report to standard output. ``--list-styles`` prints
+        the suffix-to-comment-style table and returns ``0`` without scanning,
+        before any path or filter validation. A missing project path is
         reported to standard error and returns ``2``, the conventional
         usage-error status, instead of raising a traceback.
     """
 
     parser = build_argument_parser()
     arguments = parser.parse_args(argv)
+    if arguments.list_styles:
+        # Handled before the path check so `todo-scan --list-styles` works from
+        # any directory and with a positional path that does not exist; the
+        # listing is static information about the tool, not about a project.
+        sys.stdout.write(format_comment_style_listing())
+        return 0
     project_root = Path(arguments.project_path)
     if not project_root.exists():
         print(f"todo-scan: path not found: {project_root}", file=sys.stderr)
