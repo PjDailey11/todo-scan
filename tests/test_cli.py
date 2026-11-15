@@ -322,3 +322,33 @@ def test_main_list_styles_ignores_a_missing_project_path(capsys) -> None:
 
     assert exit_status == 0
     assert captured.out.startswith(".bash")
+
+
+def test_main_format_csv_prints_rows_in_sort_order(tmp_path: Path, capsys) -> None:
+    """CSV output goes through the same ``--sort`` step as every other format."""
+
+    _write_sort_fixture(tmp_path)
+
+    exit_status = main([str(tmp_path), "--format", "csv", "--sort", "tag"])
+    captured = capsys.readouterr()
+    csv_rows = captured.out.splitlines()
+
+    assert exit_status == 0
+    assert csv_rows[0] == "path,line,tag,message,comment_style"
+    reported_tags = [row.split(",")[2] for row in csv_rows[1:]]
+    assert reported_tags == sorted(reported_tags)
+
+
+def test_main_format_csv_output_file_keeps_crlf_row_endings(tmp_path: Path) -> None:
+    """``--output`` must not translate the RFC 4180 ``\\r\\n`` endings a second time."""
+
+    (tmp_path / "app.py").write_text("# TODO: a, b\n", encoding="utf-8")
+    report_path = tmp_path / "todos.csv"
+
+    exit_status = main([str(tmp_path), "--format", "csv", "--output", str(report_path)])
+
+    assert exit_status == 0
+    assert report_path.read_bytes() == (
+        b"path,line,tag,message,comment_style\r\n"
+        b'app.py,1,TODO,"a, b",hash\r\n'
+    )

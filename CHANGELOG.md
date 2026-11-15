@@ -13,6 +13,16 @@ flags and exit statuses are not changed without a note under **Changed**.
 - `--list-styles` prints every recognized file suffix with its comment style
   and delimiters, generated from the scanner's own mapping, and exits 0
   without scanning (#15).
+- `--format csv` writes a header row (`path,line,tag,message,comment_style`)
+  and one quoted row per match, honoring `--sort`, `--output`, `--quiet`, and
+  `--stats` like the other formats (#16).
+
+### Changed
+
+- `--output` now writes the report bytes verbatim (no newline translation),
+  so CSV files keep their `\r\n` row endings on Windows. Text, JSON, and
+  Markdown reports were already `\n`-only and are unchanged on Linux and
+  macOS.
 
 ## 0.2.0 - 2026-11-13
 

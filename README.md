@@ -29,7 +29,7 @@ exit status for CI.
   anchored `/path`, and `!` negation); opt out with `--no-gitignore`.
 - Filters by tag (`--tag`), file suffix (`--suffix`), and extra directory
   names (`--exclude-dir`).
-- Text, JSON, and Markdown reports, optionally written to a file.
+- Text, JSON, Markdown, and CSV reports, optionally written to a file.
 - `--sort file|tag|count` to read results by location, grouped by tag, or
   busiest files first.
 - `--stats` per-tag summary, a `--check` mode that fails CI when tags are found,
@@ -100,8 +100,9 @@ todo-scan --max-count 37 --quiet
 # See which file suffixes are scanned and which comment delimiters each uses
 todo-scan --list-styles
 
-# Write a machine-readable or Markdown report
+# Write a machine-readable, Markdown, or spreadsheet-friendly report
 todo-scan --format json --output todos.json
+todo-scan --format csv --output todos.csv
 todo-scan --format markdown --output todos.md
 ```
 
@@ -137,6 +138,16 @@ $ todo-scan --format json --tag FIXME
 ]
 ```
 
+CSV has a header row (always present, even for an empty scan) and quotes
+messages that contain commas or quotes, so it opens cleanly in a spreadsheet:
+
+```
+$ todo-scan --format csv --tag TODO
+path,line,tag,message,comment_style
+src/app.py,2,TODO,handle empty input,hash
+tests/test_app.py,1,TODO,cover unicode names,hash
+```
+
 Markdown groups matches by file:
 
 ```
@@ -163,7 +174,7 @@ $ todo-scan --format markdown --suffix py
 | `--exclude-dir NAME` | built-in list | Extra directory basenames to skip, added to the defaults. |
 | `--no-gitignore` | off | Do not apply the top-level `.gitignore` while walking. |
 | `--sort ORDER` | `file` | `file` (path, line), `tag` (by tag name), or `count` (busiest files first). |
-| `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
+| `--format FORMAT` | `text` | `text`, `json`, `markdown`, or `csv`. |
 | `--stats` | off | Per-tag counts on standard error after the report. |
 | `--check` | off | Exit 1 when any matching tag is found. |
 | `--max-count N` | off | Exit 1 only when more than `N` tags are found (overrides `--check`). |
@@ -193,7 +204,7 @@ todo-scan/
 │   ├── recognized_tags.py   default tags and normalization
 │   ├── tagged_comment.py    the TaggedComment record
 │   ├── result_ordering.py   --sort orders (file, tag, count)
-│   └── report.py            text/JSON/Markdown formatters and tag summary
+│   └── report.py            text/JSON/Markdown/CSV formatters and tag summary
 ├── tests/                   pytest suite, one module per source module,
 │                            plus a version-consistency check
 ├── docs/                    design and usage guides

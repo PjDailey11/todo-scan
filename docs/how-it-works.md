@@ -135,6 +135,10 @@ will be read. Ties fall back to path and line for deterministic output.
 - **json**: always an array (empty when there are no matches) so other tools
   never need a special case;
 - **markdown**: one `##` heading per file with a bullet per match.
+- **csv**: a fixed header row plus one row per match, quoted by the standard
+  library `csv` writer so commas and quotes in messages survive a spreadsheet
+  import. The header is kept for empty scans for the same reason JSON stays an
+  array.
 
 Paths are shown relative to the project root when possible.
 

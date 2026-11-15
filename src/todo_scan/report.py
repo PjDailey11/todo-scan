@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from pathlib import Path
 
@@ -92,6 +94,57 @@ def format_json_report(
         for comment in tagged_comments
     ]
     return json.dumps(payload, indent=2) + "\n"
+
+
+CSV_REPORT_COLUMNS: tuple[str, ...] = ("path", "line", "tag", "message", "comment_style")
+"""Header row of the CSV report; same field names as the JSON objects."""
+
+
+def format_csv_report(
+    tagged_comments: list[TaggedComment],
+    project_root: Path | None = None,
+) -> str:
+    """Render matches as CSV with a header row, ready for a spreadsheet.
+
+    Parameters:
+        tagged_comments: Matches in the order the rows should appear, so the
+            CLI's ``--sort`` choice carries over unchanged.
+        project_root: Optional root used to relativize ``path`` values, same
+            rule as ``format_text_report``.
+
+    Returns:
+        A string whose first row is ``CSV_REPORT_COLUMNS``. The header is
+        written even when there are no matches so a spreadsheet import or a
+        ``csv.DictReader`` always sees the same columns instead of an empty
+        file it cannot tell apart from a failed run.
+
+    Behavior:
+        Quoting is delegated to the standard library ``csv`` writer rather
+        than hand-rolled, because messages routinely contain commas and
+        quotes (``TODO: handle "a, b" input``) and occasionally other
+        characters that need escaping. Rows end in ``\r\n``, the RFC 4180
+        line ending that Excel and LibreOffice expect; Python's ``csv``
+        reader accepts it on every platform. Callers writing the result to
+        a file should open it with ``newline=""`` or write the string as-is
+        so the line endings are not translated twice.
+    """
+
+    # StringIO instead of writing straight to a file keeps this formatter
+    # pure, like the others, so --output, --quiet, and tests all reuse it.
+    csv_buffer = io.StringIO()
+    csv_writer = csv.writer(csv_buffer)
+    csv_writer.writerow(CSV_REPORT_COLUMNS)
+    for comment in tagged_comments:
+        csv_writer.writerow(
+            [
+                _display_path(comment.source_path, project_root),
+                comment.line_number,
+                comment.tag,
+                comment.message,
+                comment.comment_style,
+            ]
+        )
+    return csv_buffer.getvalue()
 
 
 def format_markdown_report(

@@ -4,7 +4,7 @@
 todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
           [--no-gitignore]
           [--sort {file,tag,count}]
-          [--format {text,json,markdown}] [--stats] [--check]
+          [--format {text,json,markdown,csv}] [--stats] [--check]
           [--max-count N] [-q] [--output FILE]
           [--list-styles] [--version]
 ```
@@ -17,7 +17,7 @@ todo-scan [PROJECT_PATH] [--tag TAG] [--suffix SUFFIX] [--exclude-dir NAME]
 | `--exclude-dir NAME` | built-in list | Skip directories with this exact name **in addition to** the built-in list. Repeatable. |
 | `--no-gitignore` | off (gitignore honored) | Do not apply the project's top-level `.gitignore`. |
 | `--sort ORDER` | `file` | `file`, `tag`, or `count`. See below. |
-| `--format FORMAT` | `text` | `text`, `json`, or `markdown`. |
+| `--format FORMAT` | `text` | `text`, `json`, `markdown`, or `csv`. |
 | `--stats` | off | Print a per-tag count summary to standard error after the report. |
 | `--check` | off | Exit with status 1 when any matching tag is found. See [ci.md](ci.md). |
 | `--max-count N` | off | Exit with status 1 only when more than `N` tags are found. Overrides `--check`. See [ci.md](ci.md#allow-a-baseline-with---max-count). |
@@ -115,6 +115,29 @@ todo-scan --format markdown > TODOS.md
 
 The JSON report is always an array, including when it is empty. If the output
 file cannot be written the tool prints an error and exits with status 1.
+
+### CSV
+
+```bash
+todo-scan --format csv --output todos.csv
+```
+
+The CSV report starts with the header row
+`path,line,tag,message,comment_style` (the same field names as the JSON
+objects) and then has one row per match in the selected `--sort` order. Details
+worth knowing:
+
+- The header row is written even when nothing is found, so a spreadsheet
+  import or `csv.DictReader` always sees the same columns.
+- Quoting is done by Python's `csv` module: a message such as
+  `handle "a, b" input` becomes `"handle ""a, b"" input"`, and an empty message
+  is an empty field.
+- Rows end in `\r\n` (RFC 4180), which Excel, LibreOffice, and Python's `csv`
+  reader all expect. `--output` writes those bytes unchanged on every
+  platform. When piping standard output on Windows, prefer `--output`, because
+  the console's text mode can add an extra `\r`.
+- `--quiet` and `--stats` behave the same as for the other formats; the stats
+  summary goes to standard error, so it never ends up inside the CSV file.
 
 ## `--stats`
 
